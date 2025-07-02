@@ -157,6 +157,10 @@
             background-color: #805ad5;
         }
         
+        .section-block.pre-chorus {
+            background-color: #d69e2e;
+        }
+        
         .playing {
             animation: pulse 1s infinite;
         }
@@ -245,12 +249,22 @@
         let currentBeat = 0;
         let songSections = [];
         
-        // Song structure definitions
+        // Song structure definitions - Full length songs
         const structures = {
-            standard: ['intro', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'chorus', 'outro'],
-            simple: ['verse', 'chorus', 'verse', 'chorus'],
-            extended: ['intro', 'verse', 'chorus', 'verse', 'chorus', 'chorus', 'bridge', 'chorus', 'chorus', 'outro'],
-            industrial: ['intro', 'intro', 'verse', 'verse', 'chorus', 'verse', 'bridge', 'chorus', 'outro', 'outro']
+            standard: ['intro', 'intro', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'verse', 'chorus', 'chorus', 'bridge', 'bridge', 'chorus', 'chorus', 'outro', 'outro'],
+            simple: ['intro', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'verse', 'chorus', 'chorus', 'outro'],
+            extended: ['intro', 'intro', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'bridge', 'bridge', 'chorus', 'chorus', 'chorus', 'outro', 'outro'],
+            industrial: ['intro', 'intro', 'intro', 'verse', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'verse', 'bridge', 'bridge', 'bridge', 'chorus', 'chorus', 'outro', 'outro', 'outro']
+        };
+        
+        // Bars per section (increased for full-length song)
+        const barsPerSection = {
+            intro: 8,
+            verse: 8,
+            'pre-chorus': 4,
+            chorus: 8,
+            bridge: 8,
+            outro: 8
         };
         
         // Update slider values
@@ -360,7 +374,7 @@
             
             sections.forEach(section => {
                 const pattern = getBassPattern(section, intensity);
-                const barsInSection = section === 'bridge' ? 2 : 4;
+                const barsInSection = barsPerSection[section] || 8;
                 
                 for (let bar = 0; bar < barsInSection; bar++) {
                     pattern.forEach(note => {
@@ -409,7 +423,7 @@
             
             sections.forEach(section => {
                 const pattern = getLeadPattern(section, intensity);
-                const barsInSection = section === 'bridge' ? 2 : 4;
+                const barsInSection = barsPerSection[section] || 8;
                 
                 for (let bar = 0; bar < barsInSection; bar++) {
                     pattern.forEach(note => {
@@ -480,6 +494,16 @@
                     { pitch: 36, velocity: 85, duration: 0.5 },
                     { pitch: 36, velocity: 80, duration: 0.5 }
                 ],
+                'pre-chorus': [
+                    { pitch: 36, velocity: 75, duration: 0.5 },
+                    { pitch: 41, velocity: 70, duration: 0.5 },
+                    { pitch: 43, velocity: 75, duration: 0.5 },
+                    { pitch: 48, velocity: 70, duration: 0.5 },
+                    { pitch: 43, velocity: 75, duration: 0.5 },
+                    { pitch: 41, velocity: 70, duration: 0.5 },
+                    { pitch: 36, velocity: 75, duration: 0.5 },
+                    { pitch: 36, velocity: 70, duration: 0.5 }
+                ],
                 bridge: [
                     { pitch: 41, velocity: 70, duration: 1 },
                     { pitch: 43, velocity: 65, duration: 1 },
@@ -521,6 +545,16 @@
                     { pitch: 65, velocity: 75, duration: 0.5 },
                     { pitch: 67, velocity: 85, duration: 1 },
                     { pitch: 70, velocity: 80, duration: 1 }
+                ],
+                'pre-chorus': [
+                    { pitch: 63, velocity: 65, duration: 0.5 },
+                    { pitch: 65, velocity: 70, duration: 0.5 },
+                    { pitch: 67, velocity: 65, duration: 0.5 },
+                    { pitch: 70, velocity: 70, duration: 0.5 },
+                    { pitch: 67, velocity: 75, duration: 0.5 },
+                    { pitch: 65, velocity: 70, duration: 0.5 },
+                    { pitch: 63, velocity: 65, duration: 0.5 },
+                    { pitch: 60, velocity: 70, duration: 0.5 }
                 ],
                 bridge: [
                     { pitch: 65, velocity: 70, duration: 1 },
@@ -570,8 +604,9 @@
             // Calculate total beats for the full song
             let maxBeats = 0;
             songSections.forEach(section => {
-                // Bridge sections are 2 bars (8 beats), others are 4 bars (16 beats)
-                maxBeats += (section === 'bridge' ? 8 : 16);
+                // Get bars for this section type
+                const bars = barsPerSection[section] || 8;
+                maxBeats += bars * 4; // 4 beats per bar
             });
             
             playbackInterval = setInterval(() => {
@@ -591,7 +626,8 @@
                 document.getElementById('progressFill').style.width = progress + '%';
                 
                 // Move to next section
-                if (currentBeat >= (section === 'bridge' ? 8 : 16)) {
+                const sectionBeats = (barsPerSection[section] || 8) * 4;
+                if (currentBeat >= sectionBeats) {
                     currentBeat = 0;
                     currentSection++;
                 }
