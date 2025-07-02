@@ -7,7 +7,7 @@
 
 ## Demo Track
 
-[Play Song](Assets/otuput.mp3)
+[Play Song](Assets/output.mp3)
 
 ## Overview
 
