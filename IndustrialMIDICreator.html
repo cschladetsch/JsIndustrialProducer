@@ -355,7 +355,7 @@
         <div class="controls">
             <div class="control-group">
                 <label for="tempo">Tempo (BPM):</label>
-                <input type="range" id="tempo" min="60" max="140" value="85">
+                <input type="range" id="tempo" min="26" max="140" value="85">
                 <span class="value" id="tempoValue">85</span>
             </div>
             
@@ -401,6 +401,8 @@
         let currentBeat = 0;
         let songSections = [];
         let currentSeed = Date.now(); // Random seed for variation
+        let activeOscillators = []; // Track active oscillators for cleanup
+        let sectionTimeSignatures = []; // Store pre-calculated time signatures
         
         // Seeded random number generator
         function seededRandom(seed) {
@@ -646,52 +648,72 @@
         // Initialize with standard preset
         loadPreset('standard');
         
-        // MIDI generation with song structure
-        function generateMIDI() {
-            // Generate new seed for this song
-            currentSeed = Date.now() + Math.random() * 10000;
-            const tempo = parseInt(document.getElementById('tempo').value);
-            const intensity = parseInt(document.getElementById('intensity').value);
-            const distortion = parseInt(document.getElementById('distortion').value);
-            
-            // Get current song structure from drag-drop editor
-            updateSongSections();
-            
-            if (songSections.length === 0) {
-                document.getElementById('status').textContent = 'Please add sections to the song structure!';
-                return;
+        // Helper function for variable length encoding
+        function encodeVariableLength(value) {
+            const bytes = [];
+            bytes.push(value & 0x7F);
+            value >>= 7;
+            while (value > 0) {
+                bytes.unshift((value & 0x7F) | 0x80);
+                value >>= 7;
             }
-            
-            // Create MIDI file structure
-            const ticksPerQuarter = 480;
-            const microsecondsPerQuarter = Math.round(60000000 / tempo);
-            
-            // MIDI file header
-            const header = [
-                0x4D, 0x54, 0x68, 0x64, // "MThd"
-                0x00, 0x00, 0x00, 0x06, // Header length
-                0x00, 0x01, // Format type 1
-                0x00, 0x03, // Number of tracks (tempo, bass, lead)
-                (ticksPerQuarter >> 8) & 0xFF, ticksPerQuarter & 0xFF
-            ];
-            
-            // Track 1 - Tempo and time signature
-            let track1 = createTempoTrack(microsecondsPerQuarter);
-            
-            // Track 2 - Bass/Rhythm track
-            let track2 = createBassTrack(songSections, ticksPerQuarter, intensity);
-            
-            // Track 3 - Lead/Melody track
-            let track3 = createLeadTrack(songSections, ticksPerQuarter, intensity);
-            
-            // Combine all parts
-            midiData = new Uint8Array([...header, ...track1, ...track2, ...track3]);
-            
-            document.getElementById('status').textContent = 'Song generated successfully! (Seed: ' + Math.floor(currentSeed) + ')';
-            document.getElementById('downloadBtn').style.display = 'inline-block';
+            return bytes;
         }
         
-        function createTempoTrack(microsecondsPerQuarter) {
+        // MIDI generation with song structure
+        function generateMIDI() {
+            try {
+                // Generate new seed for this song
+                currentSeed = Date.now() + Math.random() * 10000;
+                const tempo = parseInt(document.getElementById('tempo').value);
+                const intensity = parseInt(document.getElementById('intensity').value);
+                const distortion = parseInt(document.getElementById('distortion').value);
+                
+                // Get current song structure from drag-drop editor
+                updateSongSections();
+                
+                if (songSections.length === 0) {
+                    document.getElementById('status').textContent = 'Please add sections to the song structure!';
+                    return null;
+                }
+                
+                // Create MIDI file structure
+                const ticksPerQuarter = 480;
+                const microsecondsPerQuarter = Math.round(60000000 / tempo);
+                
+                // MIDI file header
+                const header = [
+                    0x4D, 0x54, 0x68, 0x64, // "MThd"
+                    0x00, 0x00, 0x00, 0x06, // Header length
+                    0x00, 0x01, // Format type 1
+                    0x00, 0x03, // Number of tracks (tempo, bass, lead)
+                    (ticksPerQuarter >> 8) & 0xFF, ticksPerQuarter & 0xFF
+                ];
+                
+                // Track 1 - Tempo and time signature
+                let track1 = createTempoTrack(microsecondsPerQuarter, songSections, ticksPerQuarter, encodeVariableLength);
+                
+                // Track 2 - Bass/Rhythm track
+                let track2 = createBassTrack(songSections, ticksPerQuarter, intensity, encodeVariableLength);
+                
+                // Track 3 - Lead/Melody track
+                let track3 = createLeadTrack(songSections, ticksPerQuarter, intensity, encodeVariableLength);
+                
+                // Combine all parts
+                midiData = new Uint8Array([...header, ...track1, ...track2, ...track3]);
+                
+                document.getElementById('status').textContent = 'Song generated successfully! (Seed: ' + Math.floor(currentSeed) + ')';
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+                
+                return midiData;
+            } catch (error) {
+                console.error('Error generating MIDI:', error);
+                document.getElementById('status').textContent = 'Error generating MIDI: ' + error.message;
+                return null;
+            }
+        }
+        
+        function createTempoTrack(microsecondsPerQuarter, sections, ticksPerQuarter, encodeVariableLength) {
             let track = [];
             
             // Track header
@@ -707,8 +729,35 @@
             // Initial time signature (4/4)
             track.push(0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
             
+            // Add time signature changes for each section
+            let currentTick = 0;
+            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+            
+            sections.forEach((section, index) => {
+                const timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                const baseBars = barsPerSection[section] || 8;
+                const bars = Math.round(baseBars * songLengthMultiplier);
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                const ticksPerBar = ticksPerQuarter * beatsPerBar;
+                const sectionTicks = bars * ticksPerBar;
+                
+                if (index > 0 && (timeSig.numerator !== 4 || timeSig.denominator !== 4)) {
+                    // Add time signature change
+                    const deltaTime = encodeVariableLength(currentTick);
+                    track.push(...deltaTime);
+                    track.push(0xFF, 0x58, 0x04);
+                    track.push(timeSig.numerator);
+                    track.push(Math.log2(timeSig.denominator));
+                    track.push(0x18); // MIDI clocks per metronome tick
+                    track.push(0x08); // 32nd notes per quarter note
+                    currentTick = 0;
+                }
+                
+                currentTick += sectionTicks;
+            });
+            
             // End of track
-            track.push(0x00, 0xFF, 0x2F, 0x00);
+            track.push(...encodeVariableLength(0), 0xFF, 0x2F, 0x00);
             
             // Update track length
             const length = track.length - 8;
@@ -720,15 +769,13 @@
             return track;
         }
         
-        function createBassTrack(sections, ticksPerQuarter, intensity) {
+        function createBassTrack(sections, ticksPerQuarter, intensity, encodeVariableLength) {
             let track = [];
             track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
             track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
             
             // Program change to synth bass
-            track.push(0x00, 0xC0, 0x26); // Synth Bass 1
-            
-            let currentTick = 0;
+            track.push(0x00, 0xC0, 0x26); // Synth Bass 1 on channel 1
             
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
             
@@ -736,37 +783,27 @@
                 const pattern = getBassPattern(section, intensity, currentSeed + sectionIndex * 10000);
                 const baseBars = barsPerSection[section] || 8;
                 const barsInSection = Math.round(baseBars * songLengthMultiplier);
-                // Randomize time signature for verses and bridges sometimes
-                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
-                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
-                    timeSig = getRandomTimeSignature();
-                }
+                const timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
                 const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
                 
                 for (let bar = 0; bar < barsInSection; bar++) {
                     pattern.forEach(note => {
-                        // Delta time
-                        if (currentTick > 0) {
-                            track.push(0x00);
-                        }
-                        
-                        // Note on
+                        // Note on with delta time
+                        const deltaTime = encodeVariableLength(0);
+                        track.push(...deltaTime);
                         track.push(0x90, note.pitch, note.velocity);
                         
-                        // Note duration
+                        // Note off with proper delta time
                         const duration = Math.floor(note.duration * ticksPerQuarter);
-                        track.push(duration & 0x7F);
-                        
-                        // Note off
+                        const durationDelta = encodeVariableLength(duration);
+                        track.push(...durationDelta);
                         track.push(0x80, note.pitch, 0x00);
-                        
-                        currentTick += duration;
                     });
                 }
             });
             
             // End of track
-            track.push(0x00, 0xFF, 0x2F, 0x00);
+            track.push(...encodeVariableLength(0), 0xFF, 0x2F, 0x00);
             
             // Update track length
             const length = track.length - 8;
@@ -778,59 +815,51 @@
             return track;
         }
         
-        function createLeadTrack(sections, ticksPerQuarter, intensity) {
+        function createLeadTrack(sections, ticksPerQuarter, intensity, encodeVariableLength) {
             let track = [];
             track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
             track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
             
             // Program change to lead synth
-            track.push(0x00, 0xC1, 0x50); // Synth Lead
-            
-            let currentTick = 0;
+            track.push(0x00, 0xC1, 0x50); // Synth Lead on channel 2
             
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+            let accumulatedRest = 0;
             
             sections.forEach((section, sectionIndex) => {
                 const pattern = getLeadPattern(section, intensity, currentSeed + sectionIndex * 20000);
                 const baseBars = barsPerSection[section] || 8;
                 const barsInSection = Math.round(baseBars * songLengthMultiplier);
-                // Randomize time signature for verses and bridges sometimes
-                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
-                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
-                    timeSig = getRandomTimeSignature();
-                }
+                const timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
                 const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
                 
                 for (let bar = 0; bar < barsInSection; bar++) {
                     pattern.forEach(note => {
-                        // Delta time
-                        if (currentTick > 0) {
-                            track.push(0x00);
-                        }
+                        const duration = Math.floor(note.duration * ticksPerQuarter);
                         
-                        if (note.pitch > 0) { // Rest if pitch is 0
+                        if (note.pitch > 0) { // Play note
+                            // If we have accumulated rest, add it as delta time
+                            const deltaTime = encodeVariableLength(accumulatedRest);
+                            track.push(...deltaTime);
+                            accumulatedRest = 0;
+                            
                             // Note on
                             track.push(0x91, note.pitch, note.velocity);
                             
-                            // Note duration
-                            const duration = Math.floor(note.duration * ticksPerQuarter);
-                            track.push(duration & 0x7F);
-                            
-                            // Note off
+                            // Note off with duration delta
+                            const durationDelta = encodeVariableLength(duration);
+                            track.push(...durationDelta);
                             track.push(0x81, note.pitch, 0x00);
                         } else {
-                            // Rest
-                            const duration = Math.floor(note.duration * ticksPerQuarter);
-                            track.push(duration & 0x7F);
+                            // Rest - accumulate the duration
+                            accumulatedRest += duration;
                         }
-                        
-                        currentTick += Math.floor(note.duration * ticksPerQuarter);
                     });
                 }
             });
             
-            // End of track
-            track.push(0x00, 0xFF, 0x2F, 0x00);
+            // End of track  
+            track.push(...encodeVariableLength(0), 0xFF, 0x2F, 0x00);
             
             // Update track length
             const length = track.length - 8;
@@ -842,21 +871,10 @@
             return track;
         }
         
-        // Random number generator with seed
-        function seededRandom(seed) {
-            const x = Math.sin(seed++) * 10000;
-            return x - Math.floor(x);
-        }
-        
-        // Get random element from array
-        function randomChoice(array, seed) {
-            return array[Math.floor(seededRandom(seed) * array.length)];
-        }
-        
         // Vary a pitch by semitones
         function varyPitch(pitch, maxVariation, seed) {
             const variation = Math.floor((seededRandom(seed) - 0.5) * 2 * maxVariation);
-            return pitch + variation;
+            return Math.max(21, Math.min(108, pitch + variation)); // Keep within MIDI range
         }
         
         // Generate variations of patterns
@@ -1017,10 +1035,29 @@
             return generatePatternVariation(basePattern, seed);
         }
         
+        // Clean up old oscillators
+        function cleanupOscillators() {
+            if (!audioContext) return;
+            
+            const currentTime = audioContext.currentTime;
+            activeOscillators = activeOscillators.filter(item => {
+                if (item.stopTime < currentTime - 1) {
+                    // Oscillator should be stopped and can be garbage collected
+                    return false;
+                }
+                return true;
+            });
+        }
+        
         // Play preview using Web Audio API
         function playPreview() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error: Web Audio API not supported';
+                return;
             }
             
             if (isPlaying) return;
@@ -1059,15 +1096,19 @@
             let maxBeats = 0;
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
             
-            songSections.forEach(section => {
-                // Get bars for this section type
-                const baseBars = barsPerSection[section] || 8;
-                const bars = Math.round(baseBars * songLengthMultiplier);
-                // Randomize time signature for verses and bridges sometimes
+            // Pre-calculate time signatures for consistency
+            sectionTimeSignatures = songSections.map((section, index) => {
                 let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
-                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+                if ((section === 'verse' || section === 'bridge') && seededRandom(currentSeed + index * 1000) > 0.5) {
                     timeSig = getRandomTimeSignature();
                 }
+                return timeSig;
+            });
+            
+            songSections.forEach((section, index) => {
+                const baseBars = barsPerSection[section] || 8;
+                const bars = Math.round(baseBars * songLengthMultiplier);
+                const timeSig = sectionTimeSignatures[index];
                 const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
                 maxBeats += bars * beatsPerBar;
             });
@@ -1091,11 +1132,7 @@
                 // Move to next section
                 const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
                 const baseBars = barsPerSection[section] || 8;
-                // Randomize time signature for verses and bridges sometimes
-                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
-                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
-                    timeSig = getRandomTimeSignature();
-                }
+                const timeSig = sectionTimeSignatures[currentSection];
                 const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
                 const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
                 if (currentBeat >= sectionBeats) {
@@ -1106,6 +1143,9 @@
         }
         
         function playSection(section, beat, intensity, distortion, sectionIndex = 0) {
+            // Clean up old oscillators
+            cleanupOscillators();
+            
             // Bass line
             const bassOsc = audioContext.createOscillator();
             const bassGain = audioContext.createGain();
@@ -1164,12 +1204,18 @@
             bassGain.gain.value = 0.2 + (intensity * 0.03); // Louder bass
             bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
             
+            const stopTime = audioContext.currentTime + 0.2;
             bassOsc.start();
             bassOsc2.start();
             subBassOsc.start();
-            bassOsc.stop(audioContext.currentTime + 0.2);
-            bassOsc2.stop(audioContext.currentTime + 0.2);
-            subBassOsc.stop(audioContext.currentTime + 0.2);
+            bassOsc.stop(stopTime);
+            bassOsc2.stop(stopTime);
+            subBassOsc.stop(stopTime);
+            
+            // Track oscillators for cleanup
+            activeOscillators.push({ osc: bassOsc, stopTime });
+            activeOscillators.push({ osc: bassOsc2, stopTime });
+            activeOscillators.push({ osc: subBassOsc, stopTime });
             
             // Sub bass envelope
             subBassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
@@ -1218,8 +1264,12 @@
                     leadGain.gain.value = 0.12 + (intensity * 0.015); // Louder lead
                     leadGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
                     
+                    const leadStopTime = audioContext.currentTime + 0.15;
                     leadOsc.start();
-                    leadOsc.stop(audioContext.currentTime + 0.15);
+                    leadOsc.stop(leadStopTime);
+                    
+                    // Track oscillator
+                    activeOscillators.push({ osc: leadOsc, stopTime: leadStopTime });
                 }
             }
         }
@@ -1234,6 +1284,9 @@
             document.getElementById('status').classList.remove('playing');
             document.getElementById('progressBar').style.display = 'none';
             document.getElementById('progressFill').style.width = '0%';
+            
+            // Clean up all oscillators
+            activeOscillators = [];
         }
         
         // Download MIDI file
@@ -1252,7 +1305,14 @@
         }
         
         // Event listeners
-        document.getElementById('generateBtn').addEventListener('click', generateMIDI);
+        document.getElementById('generateBtn').addEventListener('click', () => {
+            try {
+                generateMIDI();
+            } catch (error) {
+                console.error('Error generating MIDI:', error);
+                document.getElementById('status').textContent = 'Error generating MIDI: ' + error.message;
+            }
+        });
         document.getElementById('playBtn').addEventListener('click', playPreview); // Plays full song
         document.getElementById('stopBtn').addEventListener('click', stopPlayback);
         document.getElementById('downloadBtn').addEventListener('click', downloadMIDI);
