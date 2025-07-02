@@ -29,6 +29,7 @@ JsTechnoProducer is a web-based application that generates industrial/techno MID
 - **Real-time Visual Feedback**: See the song structure and playback progress
 - **Responsive Controls**: Sliders and dropdowns for intuitive parameter adjustment
 - **Section Visualization**: Color-coded display of song sections (intro, verse, chorus, bridge, outro)
+- **FFT Frequency Analyzer**: Real-time spectrum visualization with multiple display modes
 
 ## Technical Details
 
@@ -37,6 +38,8 @@ JsTechnoProducer is a web-based application that generates industrial/techno MID
 - **Web Audio API**: For real-time audio synthesis and playback
 - **MIDI File Format**: Generates standard MIDI files compatible with all major DAWs
 - **HTML5/CSS3**: Modern web standards for the interface
+- **Canvas API**: For real-time frequency spectrum visualization
+- **AnalyserNode**: Web Audio API's FFT analysis for frequency data
 
 ### MIDI Implementation
 The application generates Type 1 MIDI files with:
@@ -57,6 +60,19 @@ The full song playback uses Web Audio API to create:
 - **Dynamic gain control** based on intensity settings
 - **Section-specific frequency patterns** for musical variation
 - **Complete song structure** with all sections played in sequence
+- **Real-time FFT analysis** with 2048-point resolution
+
+### Frequency Analyzer
+The built-in spectrum analyzer provides:
+- **Three Visualization Modes**:
+  - **Bars**: Color-coded frequency spectrum (purple to red gradient)
+  - **Waveform**: Time-domain oscilloscope view
+  - **Circle**: Radial frequency visualization
+- **Song Progress Tracking**: Visual indicator shows current playback position
+- **Section Information**: Displays current section name and position (e.g., "VERSE (3/18)")
+- **Time Display**: Shows elapsed and total time
+- **Frequency Range**: 20Hz to 20kHz with labeled markers
+- **Responsive Design**: Auto-scales to window size with proper DPI handling
 
 ## Parameters
 
@@ -127,6 +143,12 @@ The full song playback uses Web Audio API to create:
    - Click **"Play Full Song"** to hear the complete track in your browser
    - Click **"Stop"** to stop playback at any time
    - Click **"Download MIDI"** to save the .mid file
+   
+4. **Visualize with FFT Analyzer** (NEW):
+   - Analyzer appears automatically when playing
+   - Switch between Bars, Waveform, or Circle visualization modes
+   - Watch frequency spectrum in real-time
+   - Track song progress and current section
 
 ### NIN "The Day The World Went Away" Style Settings
 
@@ -229,6 +251,27 @@ The generator uses minor pentatonic scales and power chord progressions typical 
 - **Bridge**: Slower, atmospheric whole notes
 - **Intro/Outro**: Sparse patterns for tension building/release
 
+## Recent Updates
+
+### Version 2.0 - FFT Analyzer (Latest)
+- Added real-time frequency spectrum analyzer
+- Three visualization modes (bars, waveform, circle)
+- Song progress tracking with section labels
+- Time display showing elapsed/total duration
+- Responsive canvas with DPI scaling
+
+### Version 1.5 - Drag & Drop Builder
+- Visual drag-and-drop song structure editor
+- Custom arrangement capabilities
+- Section reordering and removal
+- Multiple preset structures
+
+### Version 1.0 - Initial Release
+- Core MIDI generation
+- Web Audio synthesis
+- Parameter controls
+- MIDI file export
+
 ## Future Enhancements
 
 Potential improvements for future versions:
@@ -240,10 +283,8 @@ Potential improvements for future versions:
 - Pattern randomization options
 - Key signature selection
 - Time signature variations
-
-## License and Usage
-
-This tool is designed for creative music production. Generated MIDI files can be used freely in your productions. The application itself should be used in accordance with any licensing terms provided by the original developers.
+- Spectrum analyzer recording/export
+- BPM detection from audio input
 
 ## Troubleshooting
 
