@@ -4,11 +4,6 @@
 
 ## Demo Visual
 
-![Demo](Assets/Demo1.jpg)
-
-
-## Demo Use
-
 ![Demo3](Assets/Demo3.gif)
 
 ## Demo Track
