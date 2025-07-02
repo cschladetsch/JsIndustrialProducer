@@ -1762,6 +1762,7 @@
             const scheduleNextBeat = () => {
                 if (totalBeats >= maxBeats || currentSection >= songSections.length) {
                     if (isLooping) {
+                        console.log('Looping to new variation...');
                         // Generate new variation for continuous music
                         currentSection = 0;
                         currentBeat = 0;
@@ -1800,6 +1801,7 @@
                         totalSongDuration = 0;
                         const tempo = parseInt(document.getElementById('tempo').value);
                         const beatDuration = 60 / tempo;
+                        const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
                         songSections.forEach((section, index) => {
                             const baseBars = barsPerSection[section] || 8;
                             const bars = Math.round(baseBars * songLengthMultiplier);
@@ -1815,11 +1817,18 @@
                         // Regenerate lyrics for new variation
                         generateLyrics();
                         
-                        // Continue playing
+                        // Don't return - continue with the next beat scheduling
                     } else {
                         stopPlayback();
                         return;
                     }
+                }
+                
+                // Ensure we have a valid section after looping
+                if (currentSection >= songSections.length) {
+                    console.error('Invalid section index after looping');
+                    stopPlayback();
+                    return;
                 }
                 
                 const section = songSections[currentSection];
