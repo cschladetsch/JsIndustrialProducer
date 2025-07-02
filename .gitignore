@@ -1,0 +1,26 @@
+# Unnecessary web assets
+IndustrialMIDICreator_files/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Node modules (if added later)
+node_modules/
+
+# Build artifacts
+dist/
+build/

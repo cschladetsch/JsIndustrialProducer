@@ -172,12 +172,16 @@ For a Nine Inch Nails industrial sound:
 ## File Structure
 
 ```
-JsTheDayTheWoldWentAway/
-├── Readme                        # Brief project identifier
+JsIndustrialProducer/
+├── Assets/                       # Demo assets
+│   ├── Demo1.jpg                # Screenshot
+│   ├── Song.mid                 # Example MIDI output
+│   └── output.mp3               # Example audio render
+├── IndustrialMIDICreator.html   # Main application (standalone)
+├── LICENSE                       # MIT License
 ├── Readme.md                     # This comprehensive documentation
-├── main.js                       # Main application file (HTML/CSS/JavaScript)
-├── IndustrialMIDICreator.html    # Clean standalone version
-└── IndustrialMIDICreator_files/  # Related web assets
+├── main.js                       # Legacy reference file
+└── r                            # Quick launch script (./r to open)
 ```
 
 ## Playing MIDI Files
