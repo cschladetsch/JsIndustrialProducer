@@ -395,6 +395,101 @@
             color: #1a1a1a;
             border-color: #4ecdc4;
         }
+        
+        /* Lyrics styles */
+        .lyrics-container {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .lyrics-container h3 {
+            color: #ff6b6b;
+            margin-bottom: 8px;
+            margin-top: 0;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .lyrics-display {
+            background-color: #0a0a0a;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #e0e0e0;
+        }
+        
+        .lyrics-section {
+            margin-bottom: 15px;
+        }
+        
+        .lyrics-section-title {
+            color: #4ecdc4;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+        
+        .lyrics-line {
+            margin-bottom: 2px;
+        }
+        
+        .lyrics-line.current {
+            background-color: #333;
+            color: #ff6b6b;
+            padding: 0 5px;
+            margin: 0 -5px;
+        }
+        
+        .lyrics-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 6px;
+        }
+        
+        .lyrics-btn {
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        
+        .lyrics-btn:hover {
+            background-color: #444;
+            border-color: #4ecdc4;
+        }
+        
+        /* Scrollbar styling */
+        .lyrics-display::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .lyrics-display::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        .lyrics-display::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+        
+        .lyrics-display::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
 <body>
@@ -493,6 +588,20 @@
                 <button class="analyzer-btn" id="circleBtn" data-mode="circle">Circle</button>
             </div>
         </div>
+        
+        <div class="lyrics-container" id="lyricsContainer" style="display: none;">
+            <h3>
+                <span>Generated Lyrics</span>
+                <button class="lyrics-btn" id="copyLyricsBtn">Copy</button>
+            </h3>
+            <div class="lyrics-display" id="lyricsDisplay">
+                <div class="lyrics-line">Click "Generate Song" to create lyrics...</div>
+            </div>
+            <div class="lyrics-controls">
+                <button class="lyrics-btn" id="regenerateLyricsBtn">Regenerate</button>
+                <button class="lyrics-btn" id="exportLyricsBtn">Export .txt</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -514,6 +623,8 @@
         let masterGain = null;
         let startTime = 0;
         let totalSongDuration = 0;
+        let generatedLyrics = {};
+        let currentLyrics = [];
         
         // Seeded random number generator
         function seededRandom(seed) {
@@ -759,6 +870,149 @@
         // Initialize with standard preset
         loadPreset('standard');
         
+        // Industrial/Tool-style lyrics generation
+        const lyricsThemes = {
+            existential: [
+                'fractured', 'dissolve', 'beneath', 'hollow', 'spiral', 'descend',
+                'machine', 'synthetic', 'digital', 'static', 'void', 'echo',
+                'rust', 'corrode', 'decay', 'fragment', 'shatter', 'erode'
+            ],
+            emotional: [
+                'numb', 'disconnect', 'isolate', 'suffocate', 'drown', 'bleed',
+                'scar', 'wound', 'break', 'tear', 'rip', 'crush'
+            ],
+            abstract: [
+                'time', 'space', 'dimension', 'reality', 'existence', 'consciousness',
+                'illusion', 'perception', 'distortion', 'reflection', 'shadow', 'light'
+            ],
+            industrial: [
+                'steel', 'wire', 'circuit', 'pulse', 'frequency', 'signal',
+                'transmission', 'feedback', 'overload', 'system', 'malfunction', 'glitch'
+            ]
+        };
+        
+        const lyricPatterns = {
+            verse: [
+                '{abstract} {emotional} through {industrial}',
+                '{existential} in the {abstract}',
+                'I {emotional} as {industrial} {existential}',
+                'The {abstract} {existential}, {emotional} within',
+                '{industrial} {emotional} my {abstract}'
+            ],
+            chorus: [
+                '{existential}! {existential}!',
+                'We {emotional} in {industrial}',
+                '{abstract} {existential} away',
+                'Breaking down, {emotional}',
+                '{industrial} {abstract} {emotional}'
+            ],
+            bridge: [
+                'Is this {abstract}?',
+                'Where {industrial} meets {emotional}',
+                '{existential} becomes {abstract}',
+                'Lost in {industrial} {abstract}'
+            ]
+        };
+        
+        function generateLyrics() {
+            generatedLyrics = {};
+            currentLyrics = [];
+            const lyricsDisplay = document.getElementById('lyricsDisplay');
+            lyricsDisplay.innerHTML = '';
+            
+            // Show lyrics container
+            document.getElementById('lyricsContainer').style.display = 'block';
+            
+            songSections.forEach((section, index) => {
+                if (section === 'intro' || section === 'outro' || section === 'instrumental') {
+                    // Instrumental sections
+                    generatedLyrics[`${section}_${index}`] = ['[Instrumental]'];
+                } else if (section === 'breakdown') {
+                    // Breakdown - minimal, repetitive
+                    const word = randomChoice(lyricsThemes.existential, currentSeed + index * 1000);
+                    generatedLyrics[`${section}_${index}`] = [
+                        word.toUpperCase(),
+                        word.toUpperCase(),
+                        '...',
+                        word.toUpperCase()
+                    ];
+                } else {
+                    // Generate verse/chorus/bridge lyrics
+                    const linesCount = section === 'verse' ? 4 : section === 'chorus' ? 3 : 2;
+                    const lines = [];
+                    
+                    for (let i = 0; i < linesCount; i++) {
+                        const pattern = randomChoice(
+                            lyricPatterns[section] || lyricPatterns.verse,
+                            currentSeed + index * 1000 + i * 100
+                        );
+                        
+                        let line = pattern;
+                        // Replace placeholders with random words
+                        line = line.replace(/{abstract}/g, () => 
+                            randomChoice(lyricsThemes.abstract, currentSeed + Math.random() * 10000)
+                        );
+                        line = line.replace(/{emotional}/g, () => 
+                            randomChoice(lyricsThemes.emotional, currentSeed + Math.random() * 10000)
+                        );
+                        line = line.replace(/{existential}/g, () => 
+                            randomChoice(lyricsThemes.existential, currentSeed + Math.random() * 10000)
+                        );
+                        line = line.replace(/{industrial}/g, () => 
+                            randomChoice(lyricsThemes.industrial, currentSeed + Math.random() * 10000)
+                        );
+                        
+                        lines.push(line.charAt(0).toUpperCase() + line.slice(1));
+                    }
+                    
+                    generatedLyrics[`${section}_${index}`] = lines;
+                }
+                
+                // Display lyrics
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'lyrics-section';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'lyrics-section-title';
+                titleDiv.textContent = `[${section.toUpperCase()}]`;
+                sectionDiv.appendChild(titleDiv);
+                
+                generatedLyrics[`${section}_${index}`].forEach(line => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'lyrics-line';
+                    lineDiv.textContent = line;
+                    sectionDiv.appendChild(lineDiv);
+                    currentLyrics.push({ element: lineDiv, section: index, text: line });
+                });
+                
+                lyricsDisplay.appendChild(sectionDiv);
+            });
+        }
+        
+        // Update current lyric highlighting during playback
+        function updateCurrentLyric() {
+            if (!isPlaying || currentLyrics.length === 0) return;
+            
+            // Clear all highlights
+            currentLyrics.forEach(lyric => {
+                lyric.element.classList.remove('current');
+            });
+            
+            // Highlight current section's lyrics
+            const currentSectionLyrics = currentLyrics.filter(l => l.section === currentSection);
+            if (currentSectionLyrics.length > 0) {
+                const lyricIndex = Math.floor((currentBeat / 4) % currentSectionLyrics.length);
+                if (currentSectionLyrics[lyricIndex]) {
+                    currentSectionLyrics[lyricIndex].element.classList.add('current');
+                    // Scroll to current lyric
+                    currentSectionLyrics[lyricIndex].element.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }
+            }
+        }
+        
         // Helper function for variable length encoding
         function encodeVariableLength(value) {
             const bytes = [];
@@ -815,6 +1069,9 @@
                 
                 document.getElementById('status').textContent = 'Song generated successfully! (Seed: ' + Math.floor(currentSeed) + ')';
                 document.getElementById('downloadBtn').style.display = 'inline-block';
+                
+                // Generate lyrics
+                generateLyrics();
                 
                 return midiData;
             } catch (error) {
@@ -1450,6 +1707,9 @@
                 // Update labels
                 updateLabels();
                 
+                // Update current lyric
+                updateCurrentLyric();
+                
                 // Move to next section
                 const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
                 const baseBars = barsPerSection[section] || 8;
@@ -1636,6 +1896,11 @@
             document.getElementById('currentSectionLabel').textContent = 'Section: -';
             document.getElementById('currentTimeLabel').textContent = 'Time: 0:00 / 0:00';
             
+            // Clear lyric highlighting
+            currentLyrics.forEach(lyric => {
+                lyric.element.classList.remove('current');
+            });
+            
             // Clean up all oscillators
             activeOscillators = [];
         }
@@ -1675,6 +1940,55 @@
                 e.target.classList.add('active');
                 analyserMode = e.target.dataset.mode;
             });
+        });
+        
+        // Lyrics controls
+        document.getElementById('regenerateLyricsBtn').addEventListener('click', () => {
+            currentSeed = Date.now() + Math.random() * 10000;
+            generateLyrics();
+        });
+        
+        document.getElementById('copyLyricsBtn').addEventListener('click', () => {
+            let lyricsText = '';
+            Object.entries(generatedLyrics).forEach(([key, lines]) => {
+                const section = key.split('_')[0];
+                lyricsText += `[${section.toUpperCase()}]\n`;
+                lines.forEach(line => {
+                    lyricsText += line + '\n';
+                });
+                lyricsText += '\n';
+            });
+            
+            navigator.clipboard.writeText(lyricsText).then(() => {
+                const btn = document.getElementById('copyLyricsBtn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        });
+        
+        document.getElementById('exportLyricsBtn').addEventListener('click', () => {
+            let lyricsText = `${document.querySelector('h1').textContent} - Lyrics\n`;
+            lyricsText += `Generated: ${new Date().toLocaleString()}\n\n`;
+            
+            Object.entries(generatedLyrics).forEach(([key, lines]) => {
+                const section = key.split('_')[0];
+                lyricsText += `[${section.toUpperCase()}]\n`;
+                lines.forEach(line => {
+                    lyricsText += line + '\n';
+                });
+                lyricsText += '\n';
+            });
+            
+            const blob = new Blob([lyricsText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'industrial_song_lyrics.txt';
+            a.click();
+            URL.revokeObjectURL(url);
         });
         
         // Handle window resize for canvas
