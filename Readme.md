@@ -1,4 +1,6 @@
-# JsTechnoProducer - Industrial MIDI Song Creator
+# JsIndustrialProducer - Industrial MIDI Song Creator
+
+**Note:** For the full experience with parameter controls, song generation, and real-time playback, please download and run locally. The application is a standalone HTML file with no external dependencies.
 
 ## Demo Visual
 
@@ -11,7 +13,7 @@
 
 ## Overview
 
-JsTechnoProducer is a web-based application that generates industrial/techno MIDI songs with customizable parameters. This tool allows musicians and producers to quickly create industrial-style MIDI compositions that can be imported into digital audio workstations (DAWs) for further production.
+JsIndustrialProducer is a web-based application that generates industrial/techno MIDI songs with customizable parameters. This tool allows musicians and producers to quickly create industrial-style MIDI compositions that can be imported into digital audio workstations (DAWs) for further production.
 
 ## Features
 
@@ -108,8 +110,8 @@ The integrated lyrics generator creates thematic content inspired by industrial/
 
 1. **Clone the repository** (if you haven't already):
    ```bash
-   git clone https://github.com/cschladetsch/JsTechnoProducer.git
-   cd JsTechnoProducer
+   git clone https://github.com/cschladetsch/JsIndustrialProducer.git
+   cd JsIndustrialProducer
    ```
 
 2. **Open the application** in your web browser:
