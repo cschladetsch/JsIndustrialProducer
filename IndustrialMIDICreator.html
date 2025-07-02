@@ -366,6 +366,30 @@
             font-size: 11px;
         }
         
+        .section-progress-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        
+        .section-progress-slider {
+            flex: 1;
+            height: 4px;
+            background-color: #333;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .section-progress-fill {
+            height: 100%;
+            background-color: #ff6b6b;
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 5px rgba(255, 107, 107, 0.5);
+        }
+        
         .frequency-labels {
             display: flex;
             justify-content: space-between;
@@ -585,8 +609,14 @@
                 <span>10kHz</span>
                 <span>20kHz</span>
             </div>
+            <div class="section-progress-container">
+                <span id="currentSectionLabel" style="min-width: 150px;">Section: -</span>
+                <div class="section-progress-slider">
+                    <div class="section-progress-fill" id="sectionProgressFill"></div>
+                </div>
+            </div>
             <div class="analyzer-info">
-                <span id="currentSectionLabel">Section: -</span>
+                <span id="sectionProgressLabel">Progress: 0%</span>
                 <span id="currentTimeLabel">Time: 0:00 / 0:00</span>
             </div>
             <div class="analyzer-controls">
@@ -1627,6 +1657,17 @@
                 document.getElementById('currentSectionLabel').textContent = 
                     `Section: ${section.toUpperCase()} (${currentSection + 1}/${songSections.length})`;
                 
+                // Calculate section progress
+                const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                const baseBars = barsPerSection[section] || 8;
+                const timeSig = sectionTimeSignatures[currentSection] || { numerator: 4, denominator: 4 };
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+                const sectionProgress = (currentBeat / sectionBeats) * 100;
+                
+                document.getElementById('sectionProgressFill').style.width = sectionProgress + '%';
+                document.getElementById('sectionProgressLabel').textContent = `Progress: ${Math.round(sectionProgress)}%`;
+                
                     highlightCurrentSection(currentSection);
             }
         }
@@ -1734,6 +1775,15 @@
                             const randomStructure = structures[Math.floor(Math.random() * structures.length)];
                             songSections = [...window.structures[randomStructure]];
                             
+                            // Regenerate time signatures for new structure
+                            sectionTimeSignatures = songSections.map((section, index) => {
+                                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                                if ((section === 'verse' || section === 'bridge') && seededRandom(currentSeed + index * 1000) > 0.5) {
+                                    timeSig = getRandomTimeSignature();
+                                }
+                                return timeSig;
+                            });
+                            
                             // Recalculate maxBeats for new structure
                             maxBeats = 0;
                             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
@@ -1746,9 +1796,24 @@
                             });
                         }
                         
-                        // Update lyrics for new variation
-                        generatedLyrics = generateLyrics(songSections);
-                        displayLyrics();
+                        // Recalculate total song duration
+                        totalSongDuration = 0;
+                        const tempo = parseInt(document.getElementById('tempo').value);
+                        const beatDuration = 60 / tempo;
+                        songSections.forEach((section, index) => {
+                            const baseBars = barsPerSection[section] || 8;
+                            const bars = Math.round(baseBars * songLengthMultiplier);
+                            const timeSig = sectionTimeSignatures[index];
+                            const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                            const sectionDuration = (bars * beatsPerBar * beatDuration);
+                            totalSongDuration += sectionDuration;
+                        });
+                        
+                        // Reset start time for new loop
+                        startTime = audioContext.currentTime;
+                        
+                        // Regenerate lyrics for new variation
+                        generateLyrics();
                         
                         // Continue playing
                     } else {
@@ -2054,6 +2119,8 @@
             
             document.getElementById('currentSectionLabel').textContent = 'Section: -';
             document.getElementById('currentTimeLabel').textContent = 'Time: 0:00 / 0:00';
+            document.getElementById('sectionProgressFill').style.width = '0%';
+            document.getElementById('sectionProgressLabel').textContent = 'Progress: 0%';
             
             currentLyrics.forEach(lyric => {
                 lyric.element.classList.remove('current');
