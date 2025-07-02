@@ -6,6 +6,11 @@
 
 ![Demo3](Assets/Demo3.gif)
 
+## Latest Features
+
+### AI-Generated Lyrics
+The application now generates industrial/electronic themed lyrics that sync with your music playback. Each song gets unique, thematically appropriate lyrics inspired by artists like Nine Inch Nails, Ministry, and KMFDM.
+
 ## Demo Track
 
 [🎵 Play Song](https://github.com/cschladetsch/JsIndustrialProducer/raw/main/Assets/output.mp3)
@@ -24,15 +29,16 @@ JsIndustrialProducer is a web-based application that generates industrial/techno
 - **Parameter Control**: Adjust tempo, intensity, distortion, and song length
 - **Multi-track Output**: Generates bass and lead tracks with complex time signatures
 - **Randomization**: Each generated song is unique with seed-based variations
-- **AI Lyrics Generation**: Automatically creates industrial/electronic themed lyrics
+- **AI Lyrics Generation**: Automatically creates industrial/electronic themed lyrics with real-time sync
 
 ### User Interface
-- **Dark Industrial Theme**: Visually appealing dark interface matching the industrial music aesthetic
+- **Compact Dark Theme**: Space-efficient industrial aesthetic with 2-column control layout
 - **Real-time Visual Feedback**: See the song structure and playback progress
 - **Responsive Controls**: Sliders and dropdowns for intuitive parameter adjustment
 - **Section Visualization**: Color-coded display of song sections (intro, verse, chorus, bridge, outro)
 - **FFT Frequency Analyzer**: Real-time spectrum visualization with multiple display modes
 - **Generated Lyrics Display**: Synced lyric highlighting with copy/export functionality
+- **Drag & Drop Builder**: Visual song structure editor with palette of available sections
 
 ## Technical Details
 
@@ -269,12 +275,14 @@ The generator uses minor pentatonic scales and power chord progressions typical 
 
 ## Recent Updates
 
-### Version 2.1 - AI Lyrics Generation (Latest)
-- Added AI-generated industrial/electronic themed lyrics
-- Real-time lyric highlighting synced with playback
-- Copy to clipboard and export functionality
-- Regenerate button for new variations
-- Compact UI improvements
+### Version 2.2 - Enhanced Lyrics & Compact UI (Latest)
+- Enhanced AI-generated lyrics with industrial/electronic themes
+- Real-time lyric highlighting perfectly synced with song sections
+- One-click copy to clipboard and .txt export
+- Regenerate button for endless lyric variations
+- Compact 2-column control layout for better space efficiency
+- Reduced analyzer height while maintaining functionality
+- Optimized for smaller screens and windows
 
 ### Version 2.0 - FFT Analyzer
 - Added real-time frequency spectrum analyzer
