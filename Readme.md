@@ -23,6 +23,7 @@ JsTechnoProducer is a web-based application that generates industrial/techno MID
 - **Parameter Control**: Adjust tempo, intensity, distortion, and song length
 - **Multi-track Output**: Generates bass and lead tracks with complex time signatures
 - **Randomization**: Each generated song is unique with seed-based variations
+- **AI Lyrics Generation**: Automatically creates industrial/electronic themed lyrics
 
 ### User Interface
 - **Dark Industrial Theme**: Visually appealing dark interface matching the industrial music aesthetic
@@ -30,6 +31,7 @@ JsTechnoProducer is a web-based application that generates industrial/techno MID
 - **Responsive Controls**: Sliders and dropdowns for intuitive parameter adjustment
 - **Section Visualization**: Color-coded display of song sections (intro, verse, chorus, bridge, outro)
 - **FFT Frequency Analyzer**: Real-time spectrum visualization with multiple display modes
+- **Generated Lyrics Display**: Synced lyric highlighting with copy/export functionality
 
 ## Technical Details
 
@@ -73,6 +75,15 @@ The built-in spectrum analyzer provides:
 - **Time Display**: Shows elapsed and total time
 - **Frequency Range**: 20Hz to 20kHz with labeled markers
 - **Responsive Design**: Auto-scales to window size with proper DPI handling
+
+### AI Lyrics Generation
+The integrated lyrics generator creates thematic content inspired by industrial/electronic artists:
+- **Dynamic Generation**: Unique lyrics for each song based on seed values
+- **Section-Specific Patterns**: Different structures for verses, choruses, bridges
+- **Industrial Themes**: Words and phrases from existential, emotional, abstract, and industrial vocabularies
+- **Real-time Sync**: Lyrics highlight in sync with music playback
+- **Export Options**: Copy to clipboard or download as .txt file
+- **Regeneration**: Create new variations with a single click
 
 ## Parameters
 
@@ -253,7 +264,14 @@ The generator uses minor pentatonic scales and power chord progressions typical 
 
 ## Recent Updates
 
-### Version 2.0 - FFT Analyzer (Latest)
+### Version 2.1 - AI Lyrics Generation (Latest)
+- Added AI-generated industrial/electronic themed lyrics
+- Real-time lyric highlighting synced with playback
+- Copy to clipboard and export functionality
+- Regenerate button for new variations
+- Compact UI improvements
+
+### Version 2.0 - FFT Analyzer
 - Added real-time frequency spectrum analyzer
 - Three visualization modes (bars, waveform, circle)
 - Song progress tracking with section labels
