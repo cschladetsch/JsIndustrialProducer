@@ -1728,6 +1728,11 @@
             
             if (!analyser) {
                 initAnalyzer();
+            } else {
+                // Restart the analyzer animation if it was stopped
+                if (!animationId) {
+                    drawAnalyzer();
+                }
             }
             
             const beatDuration = 60 / tempo;
