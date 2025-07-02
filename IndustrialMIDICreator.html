@@ -732,8 +732,8 @@
             
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
             
-            sections.forEach(section => {
-                const pattern = getBassPattern(section, intensity);
+            sections.forEach((section, sectionIndex) => {
+                const pattern = getBassPattern(section, intensity, currentSeed + sectionIndex * 10000);
                 const baseBars = barsPerSection[section] || 8;
                 const barsInSection = Math.round(baseBars * songLengthMultiplier);
                 // Randomize time signature for verses and bridges sometimes
@@ -790,8 +790,8 @@
             
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
             
-            sections.forEach(section => {
-                const pattern = getLeadPattern(section, intensity);
+            sections.forEach((section, sectionIndex) => {
+                const pattern = getLeadPattern(section, intensity, currentSeed + sectionIndex * 20000);
                 const baseBars = barsPerSection[section] || 8;
                 const barsInSection = Math.round(baseBars * songLengthMultiplier);
                 // Randomize time signature for verses and bridges sometimes
@@ -875,14 +875,14 @@
             });
         }
         
-        function getBassPattern(section, intensity) {
+        function getBassPattern(section, intensity, seed = 0) {
             const patterns = {
                 intro: [
-                    { pitch: 36, velocity: 60, duration: 1 },
-                    { pitch: 36, velocity: 50, duration: 0.5 },
-                    { pitch: 41, velocity: 55, duration: 0.5 },
-                    { pitch: 36, velocity: 60, duration: 1 },
-                    { pitch: 43, velocity: 55, duration: 1 }
+                    { pitch: randomChoice([36, 38, 41], seed), velocity: 60, duration: 1 },
+                    { pitch: randomChoice([36, 38, 41], seed + 1), velocity: 50, duration: 0.5 },
+                    { pitch: randomChoice([41, 43, 46], seed + 2), velocity: 55, duration: 0.5 },
+                    { pitch: randomChoice([36, 38, 41], seed + 3), velocity: 60, duration: 1 },
+                    { pitch: randomChoice([43, 46, 48], seed + 4), velocity: 55, duration: 1 }
                 ],
                 verse: [ // 7/8 time
                     { pitch: 36, velocity: 70, duration: 0.5 },
@@ -948,10 +948,10 @@
             }));
             
             // Add random variation to the pattern
-            return generatePatternVariation(basePattern, currentSeed + section.charCodeAt(0));
+            return generatePatternVariation(basePattern, seed);
         }
         
-        function getLeadPattern(section, intensity) {
+        function getLeadPattern(section, intensity, seed = 0) {
             const patterns = {
                 intro: [
                     { pitch: 0, velocity: 0, duration: 4 } // Rest for intro
@@ -1014,7 +1014,7 @@
             }));
             
             // Add random variation to the pattern
-            return generatePatternVariation(basePattern, currentSeed + section.charCodeAt(0) * 2);
+            return generatePatternVariation(basePattern, seed);
         }
         
         // Play preview using Web Audio API
@@ -1024,6 +1024,11 @@
             }
             
             if (isPlaying) return;
+            
+            // Generate new seed for playback if we haven't generated MIDI yet
+            if (!midiData) {
+                currentSeed = Date.now() + Math.random() * 10000;
+            }
             
             isPlaying = true;
             currentSection = 0;
@@ -1074,7 +1079,7 @@
                 }
                 
                 const section = songSections[currentSection];
-                playSection(section, currentBeat, intensity, distortion);
+                playSection(section, currentBeat, intensity, distortion, currentSection);
                 
                 currentBeat++;
                 totalBeats++;
@@ -1100,7 +1105,7 @@
             }, beatDuration * 250); // Quarter note duration
         }
         
-        function playSection(section, beat, intensity, distortion) {
+        function playSection(section, beat, intensity, distortion, sectionIndex = 0) {
             // Bass line
             const bassOsc = audioContext.createOscillator();
             const bassGain = audioContext.createGain();
@@ -1257,9 +1262,6 @@
         document.getElementById('playBtn').addEventListener('click', playPreview); // Plays full song
         document.getElementById('stopBtn').addEventListener('click', stopPlayback);
         document.getElementById('downloadBtn').addEventListener('click', downloadMIDI);
-        
-        // Generate initial MIDI
-        generateMIDI();
     </script>
 </body>
 </html>
