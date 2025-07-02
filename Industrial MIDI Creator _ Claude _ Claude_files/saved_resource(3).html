@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        // Override global fetch
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            callbacksMap.set(id, { resolve, reject });
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(new Response(event.data.body, {
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              }));
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          let linkUrl;
+          try {
+            linkUrl = new URL(linkEl.href);
+          } catch (error) {
+            return;
+          }
+    
+          if (linkUrl.hostname === window.location.hostname) return;
+    
+          window.parent.postMessage({
+            type: 'openExternal',
+            href: linkEl.href,
+          }, '*');
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial MIDI Song Creator</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            max-width: 700px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        
+        label {
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+            cursor: pointer;
+        }
+        
+        select {
+            background-color: #444;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .value {
+            color: #4ecdc4;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+        }
+        
+        button {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        button:hover {
+            background-color: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        #status {
+            text-align: center;
+            margin-top: 20px;
+            color: #4ecdc4;
+            font-style: italic;
+        }
+        
+        .song-structure {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .song-structure h3 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+        }
+        
+        .structure-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .section-block {
+            background-color: #444;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            border: 1px solid #555;
+        }
+        
+        .section-block.verse {
+            background-color: #4a5568;
+        }
+        
+        .section-block.chorus {
+            background-color: #e53e3e;
+        }
+        
+        .section-block.bridge {
+            background-color: #3182ce;
+        }
+        
+        .section-block.intro {
+            background-color: #38a169;
+        }
+        
+        .section-block.outro {
+            background-color: #805ad5;
+        }
+        
+        .playing {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #444;
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #4ecdc4;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html" data-new-gr-c-s-check-loaded="14.1109.0" data-gr-ext-installed="">
+    <div class="container">
+        <h1>Industrial MIDI Song Creator</h1>
+        
+        <div class="song-structure">
+            <h3>Song Structure</h3>
+            <div class="structure-display" id="structureDisplay"><div class="section-block intro">INTRO</div><div class="section-block verse">VERSE</div><div class="section-block chorus">CHORUS</div><div class="section-block verse">VERSE</div><div class="section-block chorus">CHORUS</div><div class="section-block bridge">BRIDGE</div><div class="section-block chorus">CHORUS</div><div class="section-block outro">OUTRO</div></div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="tempo">Tempo (BPM):</label>
+                <input type="range" id="tempo" min="60" max="140" value="85">
+                <span class="value" id="tempoValue">85</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="intensity">Intensity:</label>
+                <input type="range" id="intensity" min="1" max="10" value="7">
+                <span class="value" id="intensityValue">7</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="distortion">Distortion:</label>
+                <input type="range" id="distortion" min="0" max="100" value="60">
+                <span class="value" id="distortionValue">60</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="structure">Song Structure:</label>
+                <select id="structure">
+                    <option value="standard">Standard (Intro-Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro)</option>
+                    <option value="simple">Simple (Verse-Chorus-Verse-Chorus)</option>
+                    <option value="extended">Extended (with double choruses)</option>
+                    <option value="industrial">Industrial (atmospheric intro/outro)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="generateBtn">Generate Song</button>
+            <button id="playBtn">Play Preview</button>
+            <button id="stopBtn">Stop</button>
+            <button id="downloadBtn" style="display: inline-block;">Download MIDI</button>
+        </div>
+        
+        <div id="status">Song generated successfully!</div>
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+
+    <script>
+        let midiData = null;
+        let audioContext = null;
+        let isPlaying = false;
+        let playbackInterval = null;
+        let currentSection = 0;
+        let currentBeat = 0;
+        let songSections = [];
+        
+        // Song structure definitions
+        const structures = {
+            standard: ['intro', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'chorus', 'outro'],
+            simple: ['verse', 'chorus', 'verse', 'chorus'],
+            extended: ['intro', 'verse', 'chorus', 'verse', 'chorus', 'chorus', 'bridge', 'chorus', 'chorus', 'outro'],
+            industrial: ['intro', 'intro', 'verse', 'verse', 'chorus', 'verse', 'bridge', 'chorus', 'outro', 'outro']
+        };
+        
+        // Update slider values
+        document.getElementById('tempo').addEventListener('input', (e) => {
+            document.getElementById('tempoValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('intensity').addEventListener('input', (e) => {
+            document.getElementById('intensityValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('distortion').addEventListener('input', (e) => {
+            document.getElementById('distortionValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('structure').addEventListener('change', updateStructureDisplay);
+        
+        function updateStructureDisplay() {
+            const structureType = document.getElementById('structure').value;
+            const sections = structures[structureType];
+            const display = document.getElementById('structureDisplay');
+            
+            display.innerHTML = sections.map(section => 
+                `<div class="section-block ${section}">${section.toUpperCase()}</div>`
+            ).join('');
+        }
+        
+        // Initialize structure display
+        updateStructureDisplay();
+        
+        // MIDI generation with song structure
+        function generateMIDI() {
+            const tempo = parseInt(document.getElementById('tempo').value);
+            const intensity = parseInt(document.getElementById('intensity').value);
+            const distortion = parseInt(document.getElementById('distortion').value);
+            const structureType = document.getElementById('structure').value;
+            
+            songSections = structures[structureType];
+            
+            // Create MIDI file structure
+            const ticksPerQuarter = 480;
+            const microsecondsPerQuarter = Math.round(60000000 / tempo);
+            
+            // MIDI file header
+            const header = [
+                0x4D, 0x54, 0x68, 0x64, // "MThd"
+                0x00, 0x00, 0x00, 0x06, // Header length
+                0x00, 0x01, // Format type 1
+                0x00, 0x03, // Number of tracks (tempo, bass, lead)
+                (ticksPerQuarter >> 8) & 0xFF, ticksPerQuarter & 0xFF
+            ];
+            
+            // Track 1 - Tempo and time signature
+            let track1 = createTempoTrack(microsecondsPerQuarter);
+            
+            // Track 2 - Bass/Rhythm track
+            let track2 = createBassTrack(songSections, ticksPerQuarter, intensity);
+            
+            // Track 3 - Lead/Melody track
+            let track3 = createLeadTrack(songSections, ticksPerQuarter, intensity);
+            
+            // Combine all parts
+            midiData = new Uint8Array([...header, ...track1, ...track2, ...track3]);
+            
+            document.getElementById('status').textContent = 'Song generated successfully!';
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+        }
+        
+        function createTempoTrack(microsecondsPerQuarter) {
+            let track = [];
+            
+            // Track header
+            track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
+            track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
+            
+            // Tempo meta event
+            track.push(0x00, 0xFF, 0x51, 0x03);
+            track.push((microsecondsPerQuarter >> 16) & 0xFF);
+            track.push((microsecondsPerQuarter >> 8) & 0xFF);
+            track.push(microsecondsPerQuarter & 0xFF);
+            
+            // Time signature (4/4)
+            track.push(0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
+            
+            // End of track
+            track.push(0x00, 0xFF, 0x2F, 0x00);
+            
+            // Update track length
+            const length = track.length - 8;
+            track[4] = (length >> 24) & 0xFF;
+            track[5] = (length >> 16) & 0xFF;
+            track[6] = (length >> 8) & 0xFF;
+            track[7] = length & 0xFF;
+            
+            return track;
+        }
+        
+        function createBassTrack(sections, ticksPerQuarter, intensity) {
+            let track = [];
+            track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
+            track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
+            
+            // Program change to synth bass
+            track.push(0x00, 0xC0, 0x26); // Synth Bass 1
+            
+            let currentTick = 0;
+            
+            sections.forEach(section => {
+                const pattern = getBassPattern(section, intensity);
+                const barsInSection = section === 'bridge' ? 2 : 4;
+                
+                for (let bar = 0; bar < barsInSection; bar++) {
+                    pattern.forEach(note => {
+                        // Delta time
+                        if (currentTick > 0) {
+                            track.push(0x00);
+                        }
+                        
+                        // Note on
+                        track.push(0x90, note.pitch, note.velocity);
+                        
+                        // Note duration
+                        const duration = Math.floor(note.duration * ticksPerQuarter);
+                        track.push(duration & 0x7F);
+                        
+                        // Note off
+                        track.push(0x80, note.pitch, 0x00);
+                        
+                        currentTick += duration;
+                    });
+                }
+            });
+            
+            // End of track
+            track.push(0x00, 0xFF, 0x2F, 0x00);
+            
+            // Update track length
+            const length = track.length - 8;
+            track[4] = (length >> 24) & 0xFF;
+            track[5] = (length >> 16) & 0xFF;
+            track[6] = (length >> 8) & 0xFF;
+            track[7] = length & 0xFF;
+            
+            return track;
+        }
+        
+        function createLeadTrack(sections, ticksPerQuarter, intensity) {
+            let track = [];
+            track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
+            track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
+            
+            // Program change to lead synth
+            track.push(0x00, 0xC1, 0x50); // Synth Lead
+            
+            let currentTick = 0;
+            
+            sections.forEach(section => {
+                const pattern = getLeadPattern(section, intensity);
+                const barsInSection = section === 'bridge' ? 2 : 4;
+                
+                for (let bar = 0; bar < barsInSection; bar++) {
+                    pattern.forEach(note => {
+                        // Delta time
+                        if (currentTick > 0) {
+                            track.push(0x00);
+                        }
+                        
+                        if (note.pitch > 0) { // Rest if pitch is 0
+                            // Note on
+                            track.push(0x91, note.pitch, note.velocity);
+                            
+                            // Note duration
+                            const duration = Math.floor(note.duration * ticksPerQuarter);
+                            track.push(duration & 0x7F);
+                            
+                            // Note off
+                            track.push(0x81, note.pitch, 0x00);
+                        } else {
+                            // Rest
+                            const duration = Math.floor(note.duration * ticksPerQuarter);
+                            track.push(duration & 0x7F);
+                        }
+                        
+                        currentTick += Math.floor(note.duration * ticksPerQuarter);
+                    });
+                }
+            });
+            
+            // End of track
+            track.push(0x00, 0xFF, 0x2F, 0x00);
+            
+            // Update track length
+            const length = track.length - 8;
+            track[4] = (length >> 24) & 0xFF;
+            track[5] = (length >> 16) & 0xFF;
+            track[6] = (length >> 8) & 0xFF;
+            track[7] = length & 0xFF;
+            
+            return track;
+        }
+        
+        function getBassPattern(section, intensity) {
+            const patterns = {
+                intro: [
+                    { pitch: 36, velocity: 60, duration: 1 },
+                    { pitch: 36, velocity: 50, duration: 0.5 },
+                    { pitch: 41, velocity: 55, duration: 0.5 },
+                    { pitch: 36, velocity: 60, duration: 1 },
+                    { pitch: 43, velocity: 55, duration: 1 }
+                ],
+                verse: [
+                    { pitch: 36, velocity: 70, duration: 0.5 },
+                    { pitch: 36, velocity: 60, duration: 0.5 },
+                    { pitch: 41, velocity: 65, duration: 0.5 },
+                    { pitch: 36, velocity: 70, duration: 0.5 },
+                    { pitch: 43, velocity: 65, duration: 0.5 },
+                    { pitch: 41, velocity: 60, duration: 0.5 },
+                    { pitch: 36, velocity: 70, duration: 0.5 },
+                    { pitch: 36, velocity: 60, duration: 0.5 }
+                ],
+                chorus: [
+                    { pitch: 36, velocity: 80, duration: 0.25 },
+                    { pitch: 36, velocity: 75, duration: 0.25 },
+                    { pitch: 48, velocity: 80, duration: 0.5 },
+                    { pitch: 43, velocity: 75, duration: 0.5 },
+                    { pitch: 41, velocity: 80, duration: 0.5 },
+                    { pitch: 36, velocity: 85, duration: 0.5 },
+                    { pitch: 36, velocity: 80, duration: 0.5 }
+                ],
+                bridge: [
+                    { pitch: 41, velocity: 70, duration: 1 },
+                    { pitch: 43, velocity: 65, duration: 1 },
+                    { pitch: 46, velocity: 70, duration: 1 },
+                    { pitch: 48, velocity: 65, duration: 1 }
+                ],
+                outro: [
+                    { pitch: 36, velocity: 60, duration: 2 },
+                    { pitch: 41, velocity: 50, duration: 1 },
+                    { pitch: 36, velocity: 40, duration: 1 }
+                ]
+            };
+            
+            // Adjust velocity based on intensity
+            const pattern = patterns[section] || patterns.verse;
+            return pattern.map(note => ({
+                ...note,
+                velocity: Math.min(127, note.velocity + (intensity - 5) * 5)
+            }));
+        }
+        
+        function getLeadPattern(section, intensity) {
+            const patterns = {
+                intro: [
+                    { pitch: 0, velocity: 0, duration: 4 } // Rest for intro
+                ],
+                verse: [
+                    { pitch: 60, velocity: 60, duration: 0.5 },
+                    { pitch: 0, velocity: 0, duration: 0.5 },
+                    { pitch: 63, velocity: 55, duration: 0.5 },
+                    { pitch: 65, velocity: 60, duration: 0.5 },
+                    { pitch: 0, velocity: 0, duration: 1 },
+                    { pitch: 67, velocity: 65, duration: 1 }
+                ],
+                chorus: [
+                    { pitch: 72, velocity: 80, duration: 0.5 },
+                    { pitch: 70, velocity: 75, duration: 0.5 },
+                    { pitch: 67, velocity: 80, duration: 0.5 },
+                    { pitch: 65, velocity: 75, duration: 0.5 },
+                    { pitch: 67, velocity: 85, duration: 1 },
+                    { pitch: 70, velocity: 80, duration: 1 }
+                ],
+                bridge: [
+                    { pitch: 65, velocity: 70, duration: 1 },
+                    { pitch: 67, velocity: 75, duration: 1 },
+                    { pitch: 70, velocity: 70, duration: 0.5 },
+                    { pitch: 72, velocity: 75, duration: 0.5 },
+                    { pitch: 70, velocity: 70, duration: 1 }
+                ],
+                outro: [
+                    { pitch: 60, velocity: 50, duration: 2 },
+                    { pitch: 0, velocity: 0, duration: 2 }
+                ]
+            };
+            
+            const pattern = patterns[section] || patterns.verse;
+            return pattern.map(note => ({
+                ...note,
+                velocity: note.pitch > 0 ? Math.min(127, note.velocity + (intensity - 5) * 5) : 0
+            }));
+        }
+        
+        // Play preview using Web Audio API
+        function playPreview() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            currentSection = 0;
+            currentBeat = 0;
+            
+            document.getElementById('status').textContent = 'Playing preview...';
+            document.getElementById('status').classList.add('playing');
+            document.getElementById('progressBar').style.display = 'block';
+            
+            const tempo = parseInt(document.getElementById('tempo').value);
+            const intensity = parseInt(document.getElementById('intensity').value);
+            const distortion = parseInt(document.getElementById('distortion').value) / 100;
+            const structureType = document.getElementById('structure').value;
+            
+            songSections = structures[structureType];
+            
+            const beatDuration = 60 / tempo;
+            let totalBeats = 0;
+            const maxBeats = songSections.length * 16; // 4 bars per section, 4 beats per bar
+            
+            playbackInterval = setInterval(() => {
+                if (totalBeats >= maxBeats || currentSection >= songSections.length) {
+                    stopPlayback();
+                    return;
+                }
+                
+                const section = songSections[currentSection];
+                playSection(section, currentBeat, intensity, distortion);
+                
+                currentBeat++;
+                totalBeats++;
+                
+                // Update progress
+                const progress = (totalBeats / maxBeats) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                
+                // Move to next section
+                if (currentBeat >= (section === 'bridge' ? 8 : 16)) {
+                    currentBeat = 0;
+                    currentSection++;
+                }
+            }, beatDuration * 250); // Quarter note duration
+        }
+        
+        function playSection(section, beat, intensity, distortion) {
+            // Bass line
+            const bassOsc = audioContext.createOscillator();
+            const bassGain = audioContext.createGain();
+            const bassDistortion = audioContext.createWaveShaper();
+            
+            // Create distortion curve
+            const samples = 44100;
+            const curve = new Float32Array(samples);
+            const deg = Math.PI / 180;
+            for (let i = 0; i < samples; i++) {
+                const x = (i * 2) / samples - 1;
+                curve[i] = ((3 + distortion * 10) * x * 20 * deg) / (Math.PI + distortion * Math.abs(x));
+            }
+            bassDistortion.curve = curve;
+            
+            // Bass frequencies based on section
+            const bassFreqs = {
+                intro: [82.41, 82.41, 92.5, 82.41],
+                verse: [82.41, 82.41, 92.5, 98],
+                chorus: [82.41, 110, 98, 92.5],
+                bridge: [92.5, 98, 103.83, 110],
+                outro: [82.41, 92.5, 82.41, 82.41]
+            };
+            
+            const bassFreq = bassFreqs[section] || bassFreqs.verse;
+            bassOsc.frequency.value = bassFreq[beat % bassFreq.length] * 0.5;
+            bassOsc.type = 'sawtooth';
+            
+            bassOsc.connect(bassDistortion);
+            bassDistortion.connect(bassGain);
+            bassGain.connect(audioContext.destination);
+            
+            bassGain.gain.value = 0.15 + (intensity * 0.02);
+            bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            bassOsc.start();
+            bassOsc.stop(audioContext.currentTime + 0.2);
+            
+            // Lead line (only in certain sections)
+            if ((section === 'verse' && beat % 2 === 0) || 
+                (section === 'chorus') || 
+                (section === 'bridge' && beat % 4 < 2)) {
+                
+                const leadOsc = audioContext.createOscillator();
+                const leadGain = audioContext.createGain();
+                const leadFilter = audioContext.createBiquadFilter();
+                
+                leadFilter.type = 'lowpass';
+                leadFilter.frequency.value = 1000 + (intensity * 200);
+                leadFilter.Q.value = 5;
+                
+                const leadFreqs = {
+                    verse: [261.63, 0, 293.66, 329.63],
+                    chorus: [523.25, 493.88, 440, 392],
+                    bridge: [329.63, 349.23, 392, 440]
+                };
+                
+                const leadFreq = leadFreqs[section] || leadFreqs.verse;
+                const freq = leadFreq[beat % leadFreq.length];
+                
+                if (freq > 0) {
+                    leadOsc.frequency.value = freq;
+                    leadOsc.type = 'square';
+                    
+                    leadOsc.connect(leadFilter);
+                    leadFilter.connect(leadGain);
+                    leadGain.connect(audioContext.destination);
+                    
+                    leadGain.gain.value = 0.08 + (intensity * 0.01);
+                    leadGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                    
+                    leadOsc.start();
+                    leadOsc.stop(audioContext.currentTime + 0.15);
+                }
+            }
+        }
+        
+        function stopPlayback() {
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+            isPlaying = false;
+            document.getElementById('status').textContent = 'Playback stopped';
+            document.getElementById('status').classList.remove('playing');
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+        
+        // Download MIDI file
+        function downloadMIDI() {
+            if (!midiData) return;
+            
+            const blob = new Blob([midiData], { type: 'audio/midi' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'industrial_song.mid';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('status').textContent = 'MIDI file downloaded!';
+        }
+        
+        // Event listeners
+        document.getElementById('generateBtn').addEventListener('click', generateMIDI);
+        document.getElementById('playBtn').addEventListener('click', playPreview);
+        document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+        document.getElementById('downloadBtn').addEventListener('click', downloadMIDI);
+        
+        // Generate initial MIDI
+        generateMIDI();
+    </script>
+
+</body><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open"><style>
+      div.grammarly-desktop-integration {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select:none;
+        user-select:none;
+      }
+
+      div.grammarly-desktop-integration:before {
+        content: attr(data-content);
+      }
+    </style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration></html>
