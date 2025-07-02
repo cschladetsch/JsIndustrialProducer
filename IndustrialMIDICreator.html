@@ -682,15 +682,36 @@
         }
         
         // Update slider values
+        // Real-time parameter updates
+        let currentTempo = 70;
+        let currentIntensity = 7;
+        let currentDistortion = 60;
+        
         document.getElementById('tempo').addEventListener('input', (e) => {
+            currentTempo = parseInt(e.target.value);
             document.getElementById('tempoValue').textContent = e.target.value;
+            
+            // Update playback speed if playing
+            if (isPlaying && playbackInterval) {
+                clearInterval(playbackInterval);
+                const beatDuration = 60 / currentTempo;
+                playbackInterval = setInterval(updatePlayback, beatDuration * 1000);
+            }
         });
         
         document.getElementById('intensity').addEventListener('input', (e) => {
+            currentIntensity = parseInt(e.target.value);
             document.getElementById('intensityValue').textContent = e.target.value;
+            
+            // Update master gain if playing
+            if (masterGain) {
+                const targetGain = 0.3 + (currentIntensity - 5) * 0.05;
+                masterGain.gain.exponentialRampToValueAtTime(Math.max(0.01, targetGain), audioContext.currentTime + 0.1);
+            }
         });
         
         document.getElementById('distortion').addEventListener('input', (e) => {
+            currentDistortion = parseInt(e.target.value);
             document.getElementById('distortionValue').textContent = e.target.value;
         });
         
@@ -1778,86 +1799,114 @@
             // Clean up old oscillators
             cleanupOscillators();
             
-            // Bass line
+            // Tool-style complex bass synthesis
             const bassOsc = audioContext.createOscillator();
+            const bassOsc2 = audioContext.createOscillator();
+            const bassOsc3 = audioContext.createOscillator();
             const bassGain = audioContext.createGain();
             const bassDistortion = audioContext.createWaveShaper();
+            const bassFilter = audioContext.createBiquadFilter();
+            const bassFilter2 = audioContext.createBiquadFilter();
             
-            // Create distortion curve with variation
+            // Create more subtle distortion curve
             const samples = 44100;
             const curve = new Float32Array(samples);
-            const deg = Math.PI / 180;
-            const distortionVariation = distortion * (0.9 + seededRandom(currentSeed + beat * 500) * 0.2);
+            const distortionAmount = currentDistortion * 0.01; // Use real-time value
             for (let i = 0; i < samples; i++) {
                 const x = (i * 2) / samples - 1;
-                curve[i] = ((3 + distortionVariation * 10) * x * 20 * deg) / (Math.PI + distortionVariation * Math.abs(x));
+                // Softer clipping for more musical distortion
+                curve[i] = Math.tanh(x * (1 + distortionAmount * 2));
             }
             bassDistortion.curve = curve;
+            bassDistortion.oversample = '4x'; // Better quality
             
             // Generate randomized frequencies based on seed
             const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
             
             // Get the bass pattern for this section
-            const bassPattern = getBassPattern(section, intensity, currentSeed + sectionIndex * 10000);
+            const bassPattern = getBassPattern(section, currentIntensity, currentSeed + sectionIndex * 10000);
             const noteIndex = beat % bassPattern.length;
             const bassNote = bassPattern[noteIndex];
             
             // Convert MIDI note to frequency
             const baseFreq = bassNote.pitch > 0 ? noteToFreq(bassNote.pitch) : 82.41;
             
-            // Add random pitch variation
-            const pitchVariation = 1 + (seededRandom(currentSeed + beat * 100) - 0.5) * 0.02;
-            bassOsc.frequency.value = baseFreq * 0.5 * pitchVariation;
-            bassOsc.type = beat % 3 === 0 ? 'sawtooth' : 'square'; // Vary waveform
+            // Complex oscillator setup for Tool-like sound
+            bassOsc.frequency.value = baseFreq * 0.5;
+            bassOsc.type = 'sawtooth';
             
-            // Add second detuned oscillator for thicker sound
-            const bassOsc2 = audioContext.createOscillator();
-            bassOsc2.frequency.value = baseFreq * 0.5 * 0.99; // Slight detune
+            bassOsc2.frequency.value = baseFreq * 0.5 * 1.01; // Slight detune for thickness
             bassOsc2.type = 'square';
             
-            // Add sub bass oscillator
-            const subBassOsc = audioContext.createOscillator();
-            subBassOsc.frequency.value = baseFreq * 0.25; // Octave lower
-            subBassOsc.type = 'sine';
+            bassOsc3.frequency.value = baseFreq * 0.25; // Sub octave
+            bassOsc3.type = 'triangle';
             
-            // Sub bass gain
-            const subBassGain = audioContext.createGain();
-            subBassGain.gain.value = 0.3 + (intensity * 0.02);
+            // Filter setup for more complex tone shaping
+            bassFilter.type = 'lowpass';
+            bassFilter.frequency.value = 200 + (currentIntensity * 50);
+            bassFilter.Q.value = 5 + (section === 'breakdown' ? 10 : 0);
             
-            bassOsc.connect(bassDistortion);
-            bassOsc2.connect(bassDistortion);
+            bassFilter2.type = 'bandpass';
+            bassFilter2.frequency.value = baseFreq;
+            bassFilter2.Q.value = 2;
+            
+            // Individual gains for mixing
+            const osc1Gain = audioContext.createGain();
+            const osc2Gain = audioContext.createGain();
+            const osc3Gain = audioContext.createGain();
+            
+            osc1Gain.gain.value = 0.4;
+            osc2Gain.gain.value = 0.3;
+            osc3Gain.gain.value = 0.5; // More sub for Tool-like heaviness
+            
+            // Connect oscillators through individual gains
+            bassOsc.connect(osc1Gain);
+            bassOsc2.connect(osc2Gain);
+            bassOsc3.connect(osc3Gain);
+            
+            // Route through filters
+            osc1Gain.connect(bassFilter);
+            osc2Gain.connect(bassFilter);
+            osc3Gain.connect(bassFilter2);
+            
+            bassFilter.connect(bassDistortion);
+            bassFilter2.connect(bassDistortion);
             bassDistortion.connect(bassGain);
+            
             // Connect through master gain for analyzer
             if (masterGain) {
                 bassGain.connect(masterGain);
-                // Connect sub bass (no distortion)
-                subBassOsc.connect(subBassGain);
-                subBassGain.connect(masterGain);
             } else {
                 bassGain.connect(audioContext.destination);
-                // Connect sub bass (no distortion)
-                subBassOsc.connect(subBassGain);
-                subBassGain.connect(audioContext.destination);
             }
             
-            bassGain.gain.value = 0.2 + (intensity * 0.03); // Louder bass
-            bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            // Dynamic envelope based on section
+            const attackTime = section === 'breakdown' ? 0.01 : 0.05;
+            const sustainLevel = 0.15 + (currentIntensity * 0.02);
+            const releaseTime = section === 'outro' ? 0.5 : 0.2;
             
-            const stopTime = audioContext.currentTime + 0.2;
+            bassGain.gain.setValueAtTime(0, audioContext.currentTime);
+            bassGain.gain.linearRampToValueAtTime(sustainLevel, audioContext.currentTime + attackTime);
+            bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + releaseTime);
+            
+            // Add filter automation for movement
+            bassFilter.frequency.exponentialRampToValueAtTime(
+                100 + (currentIntensity * 100), 
+                audioContext.currentTime + 0.1
+            );
+            
+            const stopTime = audioContext.currentTime + releaseTime;
             bassOsc.start();
             bassOsc2.start();
-            subBassOsc.start();
+            bassOsc3.start();
             bassOsc.stop(stopTime);
             bassOsc2.stop(stopTime);
-            subBassOsc.stop(stopTime);
+            bassOsc3.stop(stopTime);
             
             // Track oscillators for cleanup
             activeOscillators.push({ osc: bassOsc, stopTime });
             activeOscillators.push({ osc: bassOsc2, stopTime });
-            activeOscillators.push({ osc: subBassOsc, stopTime });
-            
-            // Sub bass envelope
-            subBassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+            activeOscillators.push({ osc: bassOsc3, stopTime });
             
             // Lead line (only in certain sections)
             if ((section === 'verse' && beat % 2 === 0) || 
@@ -1866,54 +1915,99 @@
                 (section === 'instrumental') ||
                 (section === 'breakdown' && beat % 5 === 2)) {
                 
+                // Tool-style lead synthesis with multiple oscillators and effects
                 const leadOsc = audioContext.createOscillator();
+                const leadOsc2 = audioContext.createOscillator();
                 const leadGain = audioContext.createGain();
                 const leadFilter = audioContext.createBiquadFilter();
+                const leadFilter2 = audioContext.createBiquadFilter();
+                const leadDelay = audioContext.createDelay(0.5);
+                const delayFeedback = audioContext.createGain();
+                const delayWet = audioContext.createGain();
                 
-                leadFilter.type = 'lowpass';
-                leadFilter.frequency.value = 800 + (intensity * 150); // More aggressive filter
-                leadFilter.Q.value = 10; // Higher resonance
+                // Complex filter setup
+                leadFilter.type = 'bandpass';
+                leadFilter.frequency.value = 1000 + (currentIntensity * 200);
+                leadFilter.Q.value = 3;
+                
+                leadFilter2.type = 'lowpass';
+                leadFilter2.frequency.value = 2000 + (currentIntensity * 300);
+                leadFilter2.Q.value = 1;
+                
+                // Delay setup for atmosphere
+                leadDelay.delayTime.value = section === 'bridge' ? 0.375 : 0.25; // Dotted eighth or quarter
+                delayFeedback.gain.value = 0.3;
+                delayWet.gain.value = 0.2;
                 
                 // Get the lead pattern for this section
-                const leadPattern = getLeadPattern(section, intensity, currentSeed + sectionIndex * 20000);
+                const leadPattern = getLeadPattern(section, currentIntensity, currentSeed + sectionIndex * 20000);
                 const leadNoteIndex = beat % leadPattern.length;
                 const leadNote = leadPattern[leadNoteIndex];
                 
                 // Convert MIDI note to frequency
                 let freq = leadNote.pitch > 0 ? noteToFreq(leadNote.pitch) : 0;
                 
-                // Add random octave jumps and variations
-                if (freq > 0 && seededRandom(currentSeed + beat * 200) > 0.7) {
-                    freq *= randomChoice([0.5, 1, 2], currentSeed + beat * 300); // Octave variation
-                }
-                
                 if (freq > 0) {
+                    // Dual oscillator setup
                     leadOsc.frequency.value = freq;
-                    leadOsc.type = 'square';
+                    leadOsc.type = 'sawtooth';
                     
-                    // Add pitch bend for more industrial sound
-                    const bendDirection = seededRandom(currentSeed + beat * 400) > 0.5 ? 0.95 : 1.05;
-                    leadOsc.frequency.setValueAtTime(freq * bendDirection, audioContext.currentTime);
-                    leadOsc.frequency.exponentialRampToValueAtTime(freq, audioContext.currentTime + 0.05);
+                    leadOsc2.frequency.value = freq * 1.005; // Slight detune for thickness
+                    leadOsc2.type = 'triangle';
                     
+                    // Add subtle vibrato for more organic feel
+                    const vibrato = audioContext.createOscillator();
+                    const vibratoGain = audioContext.createGain();
+                    vibrato.frequency.value = 4 + (seededRandom(currentSeed + beat * 400) * 2);
+                    vibratoGain.gain.value = freq * 0.01; // 1% vibrato depth
+                    vibrato.connect(vibratoGain);
+                    vibratoGain.connect(leadOsc.frequency);
+                    vibratoGain.connect(leadOsc2.frequency);
+                    vibrato.start();
+                    vibrato.stop(audioContext.currentTime + 0.3);
+                    
+                    // Complex routing
                     leadOsc.connect(leadFilter);
-                    leadFilter.connect(leadGain);
+                    leadOsc2.connect(leadFilter);
+                    leadFilter.connect(leadFilter2);
+                    leadFilter2.connect(leadGain);
+                    
+                    // Delay routing
+                    leadGain.connect(leadDelay);
+                    leadDelay.connect(delayFeedback);
+                    delayFeedback.connect(leadDelay);
+                    leadDelay.connect(delayWet);
+                    
                     // Connect through master gain for analyzer
                     if (masterGain) {
                         leadGain.connect(masterGain);
+                        delayWet.connect(masterGain);
                     } else {
                         leadGain.connect(audioContext.destination);
+                        delayWet.connect(audioContext.destination);
                     }
                     
-                    leadGain.gain.value = 0.12 + (intensity * 0.015); // Louder lead
-                    leadGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                    // Dynamic envelope
+                    leadGain.gain.setValueAtTime(0, audioContext.currentTime);
+                    leadGain.gain.linearRampToValueAtTime(0.08 + (currentIntensity * 0.01), audioContext.currentTime + 0.02);
+                    leadGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
                     
-                    const leadStopTime = audioContext.currentTime + 0.15;
+                    // Filter automation for movement
+                    leadFilter.frequency.exponentialRampToValueAtTime(
+                        freq * 2,
+                        audioContext.currentTime + 0.1
+                    );
+                    
+                    const leadStopTime = audioContext.currentTime + 0.3;
                     leadOsc.start();
+                    leadOsc2.start();
                     leadOsc.stop(leadStopTime);
+                    leadOsc2.stop(leadStopTime);
                     
-                    // Track oscillator
+                    // Track oscillators
                     activeOscillators.push({ osc: leadOsc, stopTime: leadStopTime });
+                    activeOscillators.push({ osc: leadOsc2, stopTime: leadStopTime });
+                    activeOscillators.push({ osc: vibrato, stopTime: audioContext.currentTime + 0.3 });
                 }
             }
         }
