@@ -7,6 +7,10 @@
 ![Demo](Assets/Demo1.jpg)
 
 
+## Demo Use
+
+![Demo3](Assets/Demo3.jpg)
+
 ## Demo Track
 
 [🎵 Play Song](https://github.com/cschladetsch/JsIndustrialProducer/raw/main/Assets/output.mp3)
