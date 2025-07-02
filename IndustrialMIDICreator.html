@@ -1122,19 +1122,16 @@
             }
             bassDistortion.curve = curve;
             
-            // Bass frequencies based on section
-            const bassFreqs = {
-                intro: [82.41, 82.41, 92.5, 82.41],
-                verse: [82.41, 82.41, 92.5, 98],
-                chorus: [82.41, 110, 98, 92.5],
-                bridge: [92.5, 98, 103.83, 110],
-                outro: [82.41, 92.5, 82.41, 82.41],
-                instrumental: [82.41, 87.31, 92.5, 98, 103.83, 110, 98, 92.5, 82.41],
-                breakdown: [73.42, 73.42, 65.41, 73.42, 61.74] // Lower frequencies
-            };
+            // Generate randomized frequencies based on seed
+            const noteToFreq = (note) => 440 * Math.pow(2, (note - 69) / 12);
             
-            const bassFreq = bassFreqs[section] || bassFreqs.verse;
-            const baseFreq = bassFreq[beat % bassFreq.length];
+            // Get the bass pattern for this section
+            const bassPattern = getBassPattern(section, intensity, currentSeed + sectionIndex * 10000);
+            const noteIndex = beat % bassPattern.length;
+            const bassNote = bassPattern[noteIndex];
+            
+            // Convert MIDI note to frequency
+            const baseFreq = bassNote.pitch > 0 ? noteToFreq(bassNote.pitch) : 82.41;
             
             // Add random pitch variation
             const pitchVariation = 1 + (seededRandom(currentSeed + beat * 100) - 0.5) * 0.02;
@@ -1143,12 +1140,12 @@
             
             // Add second detuned oscillator for thicker sound
             const bassOsc2 = audioContext.createOscillator();
-            bassOsc2.frequency.value = bassFreq[beat % bassFreq.length] * 0.5 * 0.99; // Slight detune
+            bassOsc2.frequency.value = baseFreq * 0.5 * 0.99; // Slight detune
             bassOsc2.type = 'square';
             
             // Add sub bass oscillator
             const subBassOsc = audioContext.createOscillator();
-            subBassOsc.frequency.value = bassFreq[beat % bassFreq.length] * 0.25; // Octave lower
+            subBassOsc.frequency.value = baseFreq * 0.25; // Octave lower
             subBassOsc.type = 'sine';
             
             // Sub bass gain
@@ -1192,16 +1189,13 @@
                 leadFilter.frequency.value = 800 + (intensity * 150); // More aggressive filter
                 leadFilter.Q.value = 10; // Higher resonance
                 
-                const leadFreqs = {
-                    verse: [261.63, 0, 293.66, 329.63],
-                    chorus: [523.25, 493.88, 440, 392],
-                    bridge: [329.63, 349.23, 392, 440],
-                    instrumental: [523.25, 493.88, 440, 392, 440, 493.88, 523.25, 587.33, 622.25],
-                    breakdown: [0, 0, 196, 0, 0] // Sparse stabs
-                };
+                // Get the lead pattern for this section
+                const leadPattern = getLeadPattern(section, intensity, currentSeed + sectionIndex * 20000);
+                const leadNoteIndex = beat % leadPattern.length;
+                const leadNote = leadPattern[leadNoteIndex];
                 
-                const leadFreq = leadFreqs[section] || leadFreqs.verse;
-                let freq = leadFreq[beat % leadFreq.length];
+                // Convert MIDI note to frequency
+                let freq = leadNote.pitch > 0 ? noteToFreq(leadNote.pitch) : 0;
                 
                 // Add random octave jumps and variations
                 if (freq > 0 && seededRandom(currentSeed + beat * 200) > 0.7) {
