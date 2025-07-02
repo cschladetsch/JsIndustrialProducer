@@ -1472,7 +1472,12 @@
             
             const currentTime = audioContext.currentTime;
             activeOscillators = activeOscillators.filter(item => {
-                if (item.stopTime < currentTime - 1) {
+                if (item.stopTime < currentTime - 0.1) {
+                    try {
+                        item.osc.disconnect();
+                    } catch (e) {
+                        // Oscillator already disconnected
+                    }
                     return false;
                 }
                 return true;
@@ -1763,12 +1768,18 @@
                 if (totalBeats >= maxBeats || currentSection >= songSections.length) {
                     if (isLooping) {
                         console.log('Looping to new variation...');
-                        // Generate new variation for continuous music
-                        currentSection = 0;
-                        currentBeat = 0;
-                        totalBeats = 0;
-                        currentSeed = Date.now() + Math.random() * 10000; // New seed for variation
-                        document.getElementById('progressFill').style.width = '0%';
+                        
+                        // Clean up any remaining oscillators to prevent noise
+                        cleanupOscillators();
+                        
+                        // Add a small delay before starting the next loop to prevent overlap
+                        setTimeout(() => {
+                            // Generate new variation for continuous music
+                            currentSection = 0;
+                            currentBeat = 0;
+                            totalBeats = 0;
+                            currentSeed = Date.now() + Math.random() * 10000; // New seed for variation
+                            document.getElementById('progressFill').style.width = '0%';
                         
                         // Optionally change song structure occasionally
                         if (Math.random() < 0.3) { // 30% chance to change structure
@@ -1814,10 +1825,14 @@
                         // Reset start time for new loop
                         startTime = audioContext.currentTime;
                         
-                        // Regenerate lyrics for new variation
-                        generateLyrics();
+                            // Regenerate lyrics for new variation
+                            generateLyrics();
+                            
+                            // Schedule the next beat after the delay
+                            scheduleNextBeat();
+                        }, 500); // 500ms gap between loops
                         
-                        // Don't return - continue with the next beat scheduling
+                        return; // Exit this iteration, will continue in setTimeout
                     } else {
                         stopPlayback();
                         return;
@@ -1852,12 +1867,15 @@
                     timingOffset += 0.005 * beatDuration * 250;
                 }
                 
-                    setTimeout(() => {
-                    const skipProbability = section === 'breakdown' ? 0.1 : 0.05;
-                    if (Math.random() > skipProbability) {
-                        playSection(section, currentBeat, intensity, distortion, currentSection);
+                    // Only play if we have a valid section
+                    if (section && currentSection < songSections.length) {
+                        setTimeout(() => {
+                            const skipProbability = section === 'breakdown' ? 0.1 : 0.05;
+                            if (Math.random() > skipProbability) {
+                                playSection(section, currentBeat, intensity, distortion, currentSection);
+                            }
+                        }, timingOffset);
                     }
-                }, timingOffset);
                 
                 currentBeat++;
                 totalBeats++;
