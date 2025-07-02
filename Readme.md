@@ -7,7 +7,7 @@
 
 ## Demo Track
 
-[Play Song](Assets/Song.mid)
+!audio[Play Song](Assets/Song.mid)
 
 ## Overview
 
