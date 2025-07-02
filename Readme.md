@@ -7,7 +7,7 @@
 
 ## Demo Track
 
-[Play Song](Assets/output.mp3)
+[🎵 Play Song](https://github.com/cschladetsch/JsIndustrialProducer/raw/main/Assets/output.mp3)
 
 ## Overview
 
