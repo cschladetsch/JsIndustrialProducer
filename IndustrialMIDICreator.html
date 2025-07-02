@@ -227,8 +227,8 @@
             
             <div class="control-group">
                 <label for="songLength">Song Length:</label>
-                <input type="range" id="songLength" min="0.5" max="3" step="0.1" value="1">
-                <span class="value" id="songLengthValue">1.0x</span>
+                <input type="range" id="songLength" min="0.5" max="2" step="0.1" value="1">
+                <span class="value" id="songLengthValue">1.0x (~5 min)</span>
             </div>
             
             <div class="control-group">
@@ -272,16 +272,16 @@
             industrial: ['intro', 'intro', 'intro', 'instrumental', 'verse', 'verse', 'verse', 'breakdown', 'chorus', 'chorus', 'verse', 'verse', 'instrumental', 'bridge', 'bridge', 'bridge', 'breakdown', 'chorus', 'chorus', 'outro', 'outro', 'outro']
         };
         
-        // Bars per section (increased for full-length song)
+        // Bars per section (calibrated for ~5 minute songs at 90 BPM)
         const barsPerSection = {
-            intro: 8,
-            verse: 8,
-            'pre-chorus': 4,
-            chorus: 8,
-            bridge: 8,
-            instrumental: 12,
-            breakdown: 6,
-            outro: 8
+            intro: 12,      // ~32 seconds
+            verse: 16,      // ~43 seconds  
+            'pre-chorus': 8, // ~21 seconds
+            chorus: 16,     // ~43 seconds
+            bridge: 12,     // ~32 seconds
+            instrumental: 16, // ~43 seconds
+            breakdown: 8,   // ~21 seconds
+            outro: 12       // ~32 seconds
         };
         
         // Time signatures for sections (like Tool/NIN)
@@ -322,7 +322,8 @@
         });
         
         document.getElementById('songLength').addEventListener('input', (e) => {
-            document.getElementById('songLengthValue').textContent = e.target.value + 'x';
+            const minutes = Math.round(5 * parseFloat(e.target.value));
+            document.getElementById('songLengthValue').textContent = e.target.value + 'x (~' + minutes + ' min)';
         });
         
         document.getElementById('structure').addEventListener('change', updateStructureDisplay);
