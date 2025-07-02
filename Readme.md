@@ -17,7 +17,7 @@ The application now generates industrial/electronic themed lyrics that sync with
 
 ## Overview
 
-JsIndustrialProducer is a web-based application that generates industrial/techno MIDI songs with customizable parameters. This tool allows musicians and producers to quickly create industrial-style MIDI compositions that can be imported into digital audio workstations (DAWs) for further production.
+JsIndustrialProducer is a web-based application that generates industrial/techno MIDI songs with customizable parameters. This tool allows musicians and producers to quickly create industrial-style MIDI compositions that can be imported into digital audio workstations (DAWs) for further production. While designed for industrial music, the application can produce surprisingly calming ambient soundscapes at slower tempos (60-80 BPM), offering versatility beyond its industrial roots.
 
 ## Features
 
@@ -96,8 +96,8 @@ The integrated lyrics generator creates thematic content inspired by industrial/
 
 ### Tempo (BPM)
 - **Range**: 60-140 BPM
-- **Default**: 85 BPM
-- **Description**: Controls the speed of the song. Lower values create slower, more atmospheric tracks while higher values create more energetic compositions.
+- **Default**: 70 BPM
+- **Description**: Controls the speed of the song. Lower values (60-80 BPM) create slower, more atmospheric and surprisingly calming ambient tracks, while higher values create more energetic industrial compositions. Despite the industrial theme, slower tempos can produce meditative soundscapes.
 
 ### Intensity
 - **Range**: 1-10
