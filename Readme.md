@@ -1,8 +1,12 @@
 # JsTechnoProducer - Industrial MIDI Song Creator
 
-## Demo
+## Demo Visual
 
 ![Demo](Assets/Demo1.jpg)
+
+
+## Demo Track
+
 [Play Song](Assets/song.mid)
 
 ## Overview
