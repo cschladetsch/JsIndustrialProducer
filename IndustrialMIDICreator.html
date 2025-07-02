@@ -315,6 +315,74 @@
             width: 0%;
             transition: width 0.3s ease;
         }
+        
+        /* FFT Analyzer styles */
+        .analyzer-container {
+            background-color: #1a1a1a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            position: relative;
+        }
+        
+        .analyzer-container h3 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        #analyzerCanvas {
+            width: 100%;
+            height: 200px;
+            background-color: #0a0a0a;
+            border-radius: 5px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .analyzer-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .frequency-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            color: #666;
+            font-size: 10px;
+        }
+        
+        .analyzer-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .analyzer-btn {
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 5px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .analyzer-btn:hover {
+            background-color: #444;
+            border-color: #4ecdc4;
+        }
+        
+        .analyzer-btn.active {
+            background-color: #4ecdc4;
+            color: #1a1a1a;
+            border-color: #4ecdc4;
+        }
     </style>
 </head>
 <body>
@@ -390,6 +458,29 @@
         <div class="progress-bar" id="progressBar" style="display: none;">
             <div class="progress-fill" id="progressFill"></div>
         </div>
+        
+        <div class="analyzer-container" id="analyzerContainer" style="display: none;">
+            <h3>Frequency Analyzer</h3>
+            <canvas id="analyzerCanvas"></canvas>
+            <div class="frequency-labels">
+                <span>20Hz</span>
+                <span>100Hz</span>
+                <span>500Hz</span>
+                <span>1kHz</span>
+                <span>5kHz</span>
+                <span>10kHz</span>
+                <span>20kHz</span>
+            </div>
+            <div class="analyzer-info">
+                <span id="currentSectionLabel">Section: -</span>
+                <span id="currentTimeLabel">Time: 0:00 / 0:00</span>
+            </div>
+            <div class="analyzer-controls">
+                <button class="analyzer-btn active" id="barsBtn" data-mode="bars">Bars</button>
+                <button class="analyzer-btn" id="waveBtn" data-mode="wave">Waveform</button>
+                <button class="analyzer-btn" id="circleBtn" data-mode="circle">Circle</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -403,6 +494,14 @@
         let currentSeed = Date.now(); // Random seed for variation
         let activeOscillators = []; // Track active oscillators for cleanup
         let sectionTimeSignatures = []; // Store pre-calculated time signatures
+        let analyser = null;
+        let analyserCanvas = null;
+        let analyserCtx = null;
+        let analyserMode = 'bars';
+        let animationId = null;
+        let masterGain = null;
+        let startTime = 0;
+        let totalSongDuration = 0;
         
         // Seeded random number generator
         function seededRandom(seed) {
@@ -1049,6 +1148,185 @@
             });
         }
         
+        // Initialize analyzer
+        function initAnalyzer() {
+            if (!audioContext) return;
+            
+            // Create analyser node
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.8;
+            
+            // Create master gain node
+            masterGain = audioContext.createGain();
+            masterGain.gain.value = 1.0;
+            
+            // Connect analyser
+            masterGain.connect(analyser);
+            analyser.connect(audioContext.destination);
+            
+            // Initialize canvas
+            analyserCanvas = document.getElementById('analyzerCanvas');
+            analyserCtx = analyserCanvas.getContext('2d');
+            
+            // Set canvas size
+            const rect = analyserCanvas.getBoundingClientRect();
+            analyserCanvas.width = rect.width * window.devicePixelRatio;
+            analyserCanvas.height = rect.height * window.devicePixelRatio;
+            analyserCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            // Show analyzer
+            document.getElementById('analyzerContainer').style.display = 'block';
+            
+            // Start animation
+            drawAnalyzer();
+        }
+        
+        // Draw analyzer visualization
+        function drawAnalyzer() {
+            animationId = requestAnimationFrame(drawAnalyzer);
+            
+            if (!analyser || !analyserCtx) return;
+            
+            const width = analyserCanvas.width / window.devicePixelRatio;
+            const height = analyserCanvas.height / window.devicePixelRatio;
+            
+            // Clear canvas
+            analyserCtx.fillStyle = '#0a0a0a';
+            analyserCtx.fillRect(0, 0, width, height);
+            
+            if (analyserMode === 'bars') {
+                drawBars(width, height);
+            } else if (analyserMode === 'wave') {
+                drawWaveform(width, height);
+            } else if (analyserMode === 'circle') {
+                drawCircle(width, height);
+            }
+            
+            // Draw progress line
+            if (totalSongDuration > 0 && isPlaying) {
+                const elapsed = audioContext.currentTime - startTime;
+                const progress = elapsed / totalSongDuration;
+                const progressX = progress * width;
+                
+                analyserCtx.strokeStyle = '#4ecdc4';
+                analyserCtx.lineWidth = 2;
+                analyserCtx.beginPath();
+                analyserCtx.moveTo(progressX, 0);
+                analyserCtx.lineTo(progressX, height);
+                analyserCtx.stroke();
+            }
+        }
+        
+        // Draw frequency bars
+        function drawBars(width, height) {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            const barWidth = width / bufferLength * 2.5;
+            let x = 0;
+            
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * height * 0.8;
+                
+                // Color based on frequency
+                const hue = (i / bufferLength) * 120 + 280; // Purple to red
+                const saturation = 50 + (dataArray[i] / 255) * 50;
+                const lightness = 30 + (dataArray[i] / 255) * 40;
+                
+                analyserCtx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                analyserCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+                if (x > width) break;
+            }
+        }
+        
+        // Draw waveform
+        function drawWaveform(width, height) {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+            
+            analyserCtx.lineWidth = 2;
+            analyserCtx.strokeStyle = '#4ecdc4';
+            analyserCtx.beginPath();
+            
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+            
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+                
+                if (i === 0) {
+                    analyserCtx.moveTo(x, y);
+                } else {
+                    analyserCtx.lineTo(x, y);
+                }
+                
+                x += sliceWidth;
+            }
+            
+            analyserCtx.stroke();
+        }
+        
+        // Draw circular visualization
+        function drawCircle(width, height) {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) * 0.3;
+            
+            analyserCtx.beginPath();
+            analyserCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            analyserCtx.strokeStyle = '#333';
+            analyserCtx.stroke();
+            
+            for (let i = 0; i < bufferLength; i += 4) {
+                const value = dataArray[i] / 255;
+                const angle = (i / bufferLength) * Math.PI * 2;
+                const barHeight = value * radius * 0.8;
+                
+                const x1 = centerX + Math.cos(angle) * radius;
+                const y1 = centerY + Math.sin(angle) * radius;
+                const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+                const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+                
+                const hue = (i / bufferLength) * 360;
+                analyserCtx.strokeStyle = `hsl(${hue}, 70%, 50%)`;
+                analyserCtx.lineWidth = 2;
+                analyserCtx.beginPath();
+                analyserCtx.moveTo(x1, y1);
+                analyserCtx.lineTo(x2, y2);
+                analyserCtx.stroke();
+            }
+        }
+        
+        // Update time and section labels
+        function updateLabels() {
+            if (!isPlaying) return;
+            
+            const elapsed = audioContext.currentTime - startTime;
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = Math.floor(elapsed % 60);
+            const totalMinutes = Math.floor(totalSongDuration / 60);
+            const totalSeconds = Math.floor(totalSongDuration % 60);
+            
+            document.getElementById('currentTimeLabel').textContent = 
+                `Time: ${minutes}:${seconds.toString().padStart(2, '0')} / ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+            
+            if (currentSection < songSections.length) {
+                const section = songSections[currentSection];
+                document.getElementById('currentSectionLabel').textContent = 
+                    `Section: ${section.toUpperCase()} (${currentSection + 1}/${songSections.length})`;
+            }
+        }
+        
         // Play preview using Web Audio API
         function playPreview() {
             try {
@@ -1090,11 +1368,29 @@
                 return;
             }
             
+            // Initialize analyzer if not already done
+            if (!analyser) {
+                initAnalyzer();
+            }
+            
             const beatDuration = 60 / tempo;
             let totalBeats = 0;
             // Calculate total beats for the full song
             let maxBeats = 0;
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+            
+            // Calculate total song duration
+            totalSongDuration = 0;
+            songSections.forEach((section, index) => {
+                const baseBars = barsPerSection[section] || 8;
+                const bars = Math.round(baseBars * songLengthMultiplier);
+                const timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                const sectionDuration = (bars * beatsPerBar * beatDuration);
+                totalSongDuration += sectionDuration;
+            });
+            
+            startTime = audioContext.currentTime;
             
             // Pre-calculate time signatures for consistency
             sectionTimeSignatures = songSections.map((section, index) => {
@@ -1128,6 +1424,9 @@
                 // Update progress
                 const progress = (totalBeats / maxBeats) * 100;
                 document.getElementById('progressFill').style.width = progress + '%';
+                
+                // Update labels
+                updateLabels();
                 
                 // Move to next section
                 const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
@@ -1195,11 +1494,18 @@
             bassOsc.connect(bassDistortion);
             bassOsc2.connect(bassDistortion);
             bassDistortion.connect(bassGain);
-            bassGain.connect(audioContext.destination);
-            
-            // Connect sub bass (no distortion)
-            subBassOsc.connect(subBassGain);
-            subBassGain.connect(audioContext.destination);
+            // Connect through master gain for analyzer
+            if (masterGain) {
+                bassGain.connect(masterGain);
+                // Connect sub bass (no distortion)
+                subBassOsc.connect(subBassGain);
+                subBassGain.connect(masterGain);
+            } else {
+                bassGain.connect(audioContext.destination);
+                // Connect sub bass (no distortion)
+                subBassOsc.connect(subBassGain);
+                subBassGain.connect(audioContext.destination);
+            }
             
             bassGain.gain.value = 0.2 + (intensity * 0.03); // Louder bass
             bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
@@ -1259,7 +1565,12 @@
                     
                     leadOsc.connect(leadFilter);
                     leadFilter.connect(leadGain);
-                    leadGain.connect(audioContext.destination);
+                    // Connect through master gain for analyzer
+                    if (masterGain) {
+                        leadGain.connect(masterGain);
+                    } else {
+                        leadGain.connect(audioContext.destination);
+                    }
                     
                     leadGain.gain.value = 0.12 + (intensity * 0.015); // Louder lead
                     leadGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
@@ -1284,6 +1595,19 @@
             document.getElementById('status').classList.remove('playing');
             document.getElementById('progressBar').style.display = 'none';
             document.getElementById('progressFill').style.width = '0%';
+            
+            // Stop analyzer animation
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // Hide analyzer
+            document.getElementById('analyzerContainer').style.display = 'none';
+            
+            // Reset labels
+            document.getElementById('currentSectionLabel').textContent = 'Section: -';
+            document.getElementById('currentTimeLabel').textContent = 'Time: 0:00 / 0:00';
             
             // Clean up all oscillators
             activeOscillators = [];
@@ -1316,6 +1640,15 @@
         document.getElementById('playBtn').addEventListener('click', playPreview); // Plays full song
         document.getElementById('stopBtn').addEventListener('click', stopPlayback);
         document.getElementById('downloadBtn').addEventListener('click', downloadMIDI);
+        
+        // Analyzer mode buttons
+        document.querySelectorAll('.analyzer-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.analyzer-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                analyserMode = e.target.dataset.mode;
+            });
+        });
     </script>
 </body>
 </html>
