@@ -263,6 +263,7 @@
         let currentSection = 0;
         let currentBeat = 0;
         let songSections = [];
+        let currentSeed = Date.now(); // Random seed for variation
         
         // Song structure definitions - Full length songs
         const structures = {
@@ -343,12 +344,26 @@
         
         // MIDI generation with song structure
         function generateMIDI() {
+            // Generate new seed for this song
+            currentSeed = Date.now() + Math.random() * 10000;
             const tempo = parseInt(document.getElementById('tempo').value);
             const intensity = parseInt(document.getElementById('intensity').value);
             const distortion = parseInt(document.getElementById('distortion').value);
             const structureType = document.getElementById('structure').value;
             
-            songSections = structures[structureType];
+            // Randomly shuffle some sections for variety
+            let baseStructure = [...structures[structureType]];
+            
+            // Sometimes swap verse and bridge positions
+            if (seededRandom(currentSeed + 1000) > 0.5) {
+                for (let i = 0; i < baseStructure.length - 1; i++) {
+                    if (baseStructure[i] === 'verse' && baseStructure[i + 1] === 'verse' && seededRandom(currentSeed + i) > 0.6) {
+                        baseStructure[i] = 'instrumental';
+                    }
+                }
+            }
+            
+            songSections = baseStructure;
             
             // Create MIDI file structure
             const ticksPerQuarter = 480;
@@ -375,7 +390,7 @@
             // Combine all parts
             midiData = new Uint8Array([...header, ...track1, ...track2, ...track3]);
             
-            document.getElementById('status').textContent = 'Song generated successfully!';
+            document.getElementById('status').textContent = 'Song generated successfully! (Seed: ' + Math.floor(currentSeed) + ')';
             document.getElementById('downloadBtn').style.display = 'inline-block';
         }
         
@@ -530,6 +545,39 @@
             return track;
         }
         
+        // Random number generator with seed
+        function seededRandom(seed) {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+        
+        // Get random element from array
+        function randomChoice(array, seed) {
+            return array[Math.floor(seededRandom(seed) * array.length)];
+        }
+        
+        // Vary a pitch by semitones
+        function varyPitch(pitch, maxVariation, seed) {
+            const variation = Math.floor((seededRandom(seed) - 0.5) * 2 * maxVariation);
+            return pitch + variation;
+        }
+        
+        // Generate variations of patterns
+        function generatePatternVariation(basePattern, seed) {
+            return basePattern.map((note, index) => {
+                const noteSeed = seed + index * 1000;
+                const pitchVariation = note.pitch > 0 ? varyPitch(note.pitch, 2, noteSeed) : 0;
+                const velocityVariation = Math.floor(note.velocity + (seededRandom(noteSeed + 1) - 0.5) * 10);
+                const durationVariation = note.duration * (0.9 + seededRandom(noteSeed + 2) * 0.2);
+                
+                return {
+                    pitch: pitchVariation,
+                    velocity: Math.max(40, Math.min(127, velocityVariation)),
+                    duration: durationVariation
+                };
+            });
+        }
+        
         function getBassPattern(section, intensity) {
             const patterns = {
                 intro: [
@@ -595,12 +643,15 @@
                 ]
             };
             
-            // Adjust velocity based on intensity
+            // Adjust velocity based on intensity and add variation
             const pattern = patterns[section] || patterns.verse;
-            return pattern.map(note => ({
+            const basePattern = pattern.map(note => ({
                 ...note,
                 velocity: Math.min(127, note.velocity + (intensity - 5) * 5)
             }));
+            
+            // Add random variation to the pattern
+            return generatePatternVariation(basePattern, currentSeed + section.charCodeAt(0));
         }
         
         function getLeadPattern(section, intensity) {
@@ -660,10 +711,13 @@
             };
             
             const pattern = patterns[section] || patterns.verse;
-            return pattern.map(note => ({
+            const basePattern = pattern.map(note => ({
                 ...note,
                 velocity: note.pitch > 0 ? Math.min(127, note.velocity + (intensity - 5) * 5) : 0
             }));
+            
+            // Add random variation to the pattern
+            return generatePatternVariation(basePattern, currentSeed + section.charCodeAt(0) * 2);
         }
         
         // Play preview using Web Audio API
@@ -747,13 +801,14 @@
             const bassGain = audioContext.createGain();
             const bassDistortion = audioContext.createWaveShaper();
             
-            // Create distortion curve
+            // Create distortion curve with variation
             const samples = 44100;
             const curve = new Float32Array(samples);
             const deg = Math.PI / 180;
+            const distortionVariation = distortion * (0.9 + seededRandom(currentSeed + beat * 500) * 0.2);
             for (let i = 0; i < samples; i++) {
                 const x = (i * 2) / samples - 1;
-                curve[i] = ((3 + distortion * 10) * x * 20 * deg) / (Math.PI + distortion * Math.abs(x));
+                curve[i] = ((3 + distortionVariation * 10) * x * 20 * deg) / (Math.PI + distortionVariation * Math.abs(x));
             }
             bassDistortion.curve = curve;
             
@@ -769,8 +824,12 @@
             };
             
             const bassFreq = bassFreqs[section] || bassFreqs.verse;
-            bassOsc.frequency.value = bassFreq[beat % bassFreq.length] * 0.5;
-            bassOsc.type = 'sawtooth';
+            const baseFreq = bassFreq[beat % bassFreq.length];
+            
+            // Add random pitch variation
+            const pitchVariation = 1 + (seededRandom(currentSeed + beat * 100) - 0.5) * 0.02;
+            bassOsc.frequency.value = baseFreq * 0.5 * pitchVariation;
+            bassOsc.type = beat % 3 === 0 ? 'sawtooth' : 'square'; // Vary waveform
             
             // Add second detuned oscillator for thicker sound
             const bassOsc2 = audioContext.createOscillator();
@@ -832,14 +891,20 @@
                 };
                 
                 const leadFreq = leadFreqs[section] || leadFreqs.verse;
-                const freq = leadFreq[beat % leadFreq.length];
+                let freq = leadFreq[beat % leadFreq.length];
+                
+                // Add random octave jumps and variations
+                if (freq > 0 && seededRandom(currentSeed + beat * 200) > 0.7) {
+                    freq *= randomChoice([0.5, 1, 2], currentSeed + beat * 300); // Octave variation
+                }
                 
                 if (freq > 0) {
                     leadOsc.frequency.value = freq;
                     leadOsc.type = 'square';
                     
                     // Add pitch bend for more industrial sound
-                    leadOsc.frequency.setValueAtTime(freq * 0.95, audioContext.currentTime);
+                    const bendDirection = seededRandom(currentSeed + beat * 400) > 0.5 ? 0.95 : 1.05;
+                    leadOsc.frequency.setValueAtTime(freq * bendDirection, audioContext.currentTime);
                     leadOsc.frequency.exponentialRampToValueAtTime(freq, audioContext.currentTime + 0.05);
                     
                     leadOsc.connect(leadFilter);
