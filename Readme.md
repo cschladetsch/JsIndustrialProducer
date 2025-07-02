@@ -8,7 +8,7 @@ JsTechnoProducer is a web-based application that generates industrial/techno MID
 
 ### Core Functionality
 - **Real-time MIDI Generation**: Create complete MIDI songs with multiple tracks instantly
-- **Web Audio Preview**: Listen to your creation directly in the browser before downloading
+- **Full Song Playback**: Listen to the entire song directly in the browser using Web Audio API
 - **Customizable Song Structure**: Choose from multiple predefined song arrangements
 - **Parameter Control**: Adjust tempo, intensity, and distortion levels
 - **Multi-track Output**: Generates bass and lead tracks with tempo information
@@ -40,11 +40,12 @@ The application generates Type 1 MIDI files with:
 4. **Industrial**: Atmospheric with extended intro/outro sections
 
 ### Audio Synthesis
-The preview feature uses Web Audio API to create:
+The full song playback uses Web Audio API to create:
 - **Sawtooth waves** for bass sounds with adjustable distortion
 - **Square waves** for lead sounds with low-pass filtering
 - **Dynamic gain control** based on intensity settings
 - **Section-specific frequency patterns** for musical variation
+- **Complete song structure** with all sections played in sequence
 
 ## Parameters
 
@@ -69,7 +70,7 @@ The preview feature uses Web Audio API to create:
 2. **Adjust Parameters**: Use the sliders to set your desired tempo, intensity, and distortion levels
 3. **Select Structure**: Choose a song structure from the dropdown menu
 4. **Generate Song**: Click "Generate Song" to create the MIDI data
-5. **Preview**: Click "Play Preview" to hear a synthesized version in your browser
+5. **Play Full Song**: Click "Play Full Song" to hear the complete synthesized version in your browser
 6. **Download**: Click "Download MIDI" to save the generated file
 
 ## File Structure

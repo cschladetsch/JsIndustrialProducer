@@ -225,7 +225,7 @@
         
         <div class="button-group">
             <button id="generateBtn">Generate Song</button>
-            <button id="playBtn">Play Preview</button>
+            <button id="playBtn">Play Full Song</button>
             <button id="stopBtn">Stop</button>
             <button id="downloadBtn" style="display: none;">Download MIDI</button>
         </div>
@@ -554,7 +554,7 @@
             currentSection = 0;
             currentBeat = 0;
             
-            document.getElementById('status').textContent = 'Playing preview...';
+            document.getElementById('status').textContent = 'Playing full song...';
             document.getElementById('status').classList.add('playing');
             document.getElementById('progressBar').style.display = 'block';
             
@@ -567,7 +567,12 @@
             
             const beatDuration = 60 / tempo;
             let totalBeats = 0;
-            const maxBeats = songSections.length * 16; // 4 bars per section, 4 beats per bar
+            // Calculate total beats for the full song
+            let maxBeats = 0;
+            songSections.forEach(section => {
+                // Bridge sections are 2 bars (8 beats), others are 4 bars (16 beats)
+                maxBeats += (section === 'bridge' ? 8 : 16);
+            });
             
             playbackInterval = setInterval(() => {
                 if (totalBeats >= maxBeats || currentSection >= songSections.length) {
@@ -700,7 +705,7 @@
         
         // Event listeners
         document.getElementById('generateBtn').addEventListener('click', generateMIDI);
-        document.getElementById('playBtn').addEventListener('click', playPreview);
+        document.getElementById('playBtn').addEventListener('click', playPreview); // Plays full song
         document.getElementById('stopBtn').addEventListener('click', stopPlayback);
         document.getElementById('downloadBtn').addEventListener('click', downloadMIDI);
         
