@@ -1,0 +1,16 @@
+Just released an open-source Industrial MIDI Song Creator - a web-based tool that generates complex industrial/techno compositions with drag-and-drop song structure building.
+
+Key features:
+- Visual song arrangement with 8 section types
+- Complex time signatures (7/8, 5/4, 9/8) inspired by Tool and Nine Inch Nails
+- Real-time Web Audio synthesis with adjustable distortion
+- Generates standard MIDI files for DAW import
+- Seed-based randomization for unique variations
+
+Built with vanilla JavaScript and Web Audio API. No dependencies, runs entirely in the browser.
+
+Perfect for producers looking to quickly prototype industrial track ideas or experiment with unconventional song structures.
+
+GitHub: [link]
+
+#WebAudio #MusicTech #JavaScript #OpenSource #MusicProduction

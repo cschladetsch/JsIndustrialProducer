@@ -262,3 +262,7 @@ This tool is designed for creative music production. Generated MIDI files can be
 ## Technical Notes
 
 The application generates MIDI data in real-time using bitwise operations to create proper MIDI byte sequences. The Web Audio API implementation uses oscillators, filters, and gain nodes to approximate the sound of classic industrial synthesizers. The distortion algorithm uses a waveshaping technique that emulates analog distortion circuits.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
