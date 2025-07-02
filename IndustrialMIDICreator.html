@@ -2135,14 +2135,14 @@
                 animationId = null;
             }
             
-            if (analyserCtx && analyserCanvas) {
-                analyserCtx.clearRect(0, 0, analyserCanvas.width, analyserCanvas.height);
-            }
-            
             const allSections = document.querySelectorAll('#structureEditor .section-block');
             allSections.forEach(section => section.classList.remove('playing'));
             
-            document.getElementById('analyzerContainer').style.display = 'none';
+            // Keep analyzer visible but clear it
+            if (analyserCtx && analyserCanvas) {
+                analyserCtx.fillStyle = '#0a0a0a';
+                analyserCtx.fillRect(0, 0, analyserCanvas.width, analyserCanvas.height);
+            }
             
             document.getElementById('currentSectionLabel').textContent = 'Section: -';
             document.getElementById('currentTimeLabel').textContent = 'Time: 0:00 / 0:00';
