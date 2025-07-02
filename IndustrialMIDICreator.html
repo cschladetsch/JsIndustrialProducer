@@ -563,7 +563,7 @@
         <div class="button-group">
             <button id="generateBtn">Generate Song</button>
             <button id="playBtn">Play Full Song</button>
-            <button id="loopBtn">Loop Song</button>
+            <button id="loopBtn">Continuous music</button>
             <button id="stopBtn">Stop</button>
             <button id="downloadBtn" style="display: none;">Download MIDI</button>
         </div>
@@ -652,6 +652,7 @@
             extended: ['intro', 'intro', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'instrumental', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'bridge', 'bridge', 'instrumental', 'chorus', 'chorus', 'chorus', 'outro', 'outro'],
             industrial: ['intro', 'intro', 'intro', 'instrumental', 'verse', 'verse', 'verse', 'breakdown', 'chorus', 'chorus', 'verse', 'verse', 'instrumental', 'bridge', 'bridge', 'bridge', 'breakdown', 'chorus', 'chorus', 'outro', 'outro', 'outro']
         };
+        window.structures = structures; // Make available globally
         
         // Bars per section (calibrated for ~5 minute songs at 90 BPM)
         const barsPerSection = {
@@ -1661,7 +1662,7 @@
             currentSection = 0;
             currentBeat = 0;
             
-            document.getElementById('status').textContent = isLooping ? 'Looping song...' : 'Playing full song...';
+            document.getElementById('status').textContent = isLooping ? 'Continuous music mode...' : 'Playing full song...';
             document.getElementById('status').classList.add('playing');
             document.getElementById('progressBar').style.display = 'block';
             
@@ -1720,11 +1721,35 @@
             const scheduleNextBeat = () => {
                 if (totalBeats >= maxBeats || currentSection >= songSections.length) {
                     if (isLooping) {
-                        // Reset for loop
+                        // Generate new variation for continuous music
                         currentSection = 0;
                         currentBeat = 0;
                         totalBeats = 0;
+                        currentSeed = Date.now() + Math.random() * 10000; // New seed for variation
                         document.getElementById('progressFill').style.width = '0%';
+                        
+                        // Optionally change song structure occasionally
+                        if (Math.random() < 0.3) { // 30% chance to change structure
+                            const structures = ['standard', 'simple', 'extended', 'industrial'];
+                            const randomStructure = structures[Math.floor(Math.random() * structures.length)];
+                            songSections = [...window.structures[randomStructure]];
+                            
+                            // Recalculate maxBeats for new structure
+                            maxBeats = 0;
+                            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                            songSections.forEach((section, index) => {
+                                const baseBars = barsPerSection[section] || 8;
+                                const bars = Math.round(baseBars * songLengthMultiplier);
+                                const timeSig = sectionTimeSignatures[index];
+                                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                                maxBeats += bars * beatsPerBar;
+                            });
+                        }
+                        
+                        // Update lyrics for new variation
+                        generatedLyrics = generateLyrics(songSections);
+                        displayLyrics();
+                        
                         // Continue playing
                     } else {
                         stopPlayback();
@@ -2068,10 +2093,23 @@
             isLooping = !isLooping;
             document.getElementById('loopBtn').classList.toggle('active', isLooping);
             
-            if (isPlaying) {
-                document.getElementById('status').textContent = isLooping ? 'Looping song...' : 'Playing full song...';
-            } else if (isLooping) {
-                playPreview();
+            if (isLooping) {
+                // Generate new song and start continuous playback
+                currentSeed = Date.now() + Math.random() * 10000;
+                updateSongSections();
+                
+                if (songSections.length === 0) {
+                    // Use a default structure if none exists
+                    songSections = ['intro', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'outro'];
+                }
+                
+                document.getElementById('status').textContent = 'Continuous music mode...';
+                
+                if (!isPlaying) {
+                    playPreview();
+                }
+            } else {
+                document.getElementById('status').textContent = isPlaying ? 'Playing full song...' : 'Ready';
             }
         });
         
