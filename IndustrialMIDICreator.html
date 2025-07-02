@@ -102,6 +102,12 @@
             transform: translateY(0);
         }
         
+        #loopBtn.active {
+            background-color: #4ecdc4;
+            color: #1a1a1a;
+            box-shadow: 0 0 10px rgba(78, 205, 196, 0.5);
+        }
+        
         .button-group {
             display: flex;
             justify-content: center;
@@ -557,6 +563,7 @@
         <div class="button-group">
             <button id="generateBtn">Generate Song</button>
             <button id="playBtn">Play Full Song</button>
+            <button id="loopBtn">Loop Song</button>
             <button id="stopBtn">Stop</button>
             <button id="downloadBtn" style="display: none;">Download MIDI</button>
         </div>
@@ -608,6 +615,7 @@
         let midiData = null;
         let audioContext = null;
         let isPlaying = false;
+        let isLooping = false;
         let playbackInterval = null;
         let currentSection = 0;
         let currentBeat = 0;
@@ -1653,7 +1661,7 @@
             currentSection = 0;
             currentBeat = 0;
             
-            document.getElementById('status').textContent = 'Playing full song...';
+            document.getElementById('status').textContent = isLooping ? 'Looping song...' : 'Playing full song...';
             document.getElementById('status').classList.add('playing');
             document.getElementById('progressBar').style.display = 'block';
             
@@ -1711,8 +1719,17 @@
             // Use setTimeout instead of setInterval for human timing
             const scheduleNextBeat = () => {
                 if (totalBeats >= maxBeats || currentSection >= songSections.length) {
-                    stopPlayback();
-                    return;
+                    if (isLooping) {
+                        // Reset for loop
+                        currentSection = 0;
+                        currentBeat = 0;
+                        totalBeats = 0;
+                        document.getElementById('progressFill').style.width = '0%';
+                        // Continue playing
+                    } else {
+                        stopPlayback();
+                        return;
+                    }
                 }
                 
                 const section = songSections[currentSection];
@@ -2042,8 +2059,28 @@
                 document.getElementById('status').textContent = 'Error generating MIDI: ' + error.message;
             }
         });
-        document.getElementById('playBtn').addEventListener('click', playPreview); // Plays full song
-        document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+        document.getElementById('playBtn').addEventListener('click', () => {
+            isLooping = false;
+            playPreview();
+        });
+        
+        document.getElementById('loopBtn').addEventListener('click', () => {
+            isLooping = !isLooping;
+            document.getElementById('loopBtn').classList.toggle('active', isLooping);
+            
+            if (isPlaying) {
+                document.getElementById('status').textContent = isLooping ? 'Looping song...' : 'Playing full song...';
+            } else if (isLooping) {
+                playPreview();
+            }
+        });
+        
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            isLooping = false;
+            document.getElementById('loopBtn').classList.remove('active');
+            stopPlayback();
+        });
+        
         document.getElementById('downloadBtn').addEventListener('click', downloadMIDI);
         
         document.querySelectorAll('.analyzer-btn').forEach(btn => {
