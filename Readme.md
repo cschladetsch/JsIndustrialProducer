@@ -182,9 +182,12 @@ For a Nine Inch Nails industrial sound:
 JsIndustrialProducer/
 ├── Assets/                       # Demo assets
 │   ├── Demo1.jpg                # Screenshot
+│   ├── Demo3.gif                # Animated demo  
 │   ├── Song.mid                 # Example MIDI output
 │   └── output.mp3               # Example audio render
 ├── IndustrialMIDICreator.html   # Main application (standalone)
+├── industrial-midi.js            # Core music generation module
+├── test-industrial-midi.js       # Comprehensive unit tests
 ├── LICENSE                       # MIT License
 ├── Readme.md                     # This comprehensive documentation
 ├── main.js                       # Legacy reference file
@@ -273,9 +276,35 @@ The generator uses minor pentatonic scales and power chord progressions typical 
 - **Bridge**: Slower, atmospheric whole notes
 - **Intro/Outro**: Sparse patterns for tension building/release
 
+## Testing
+
+The project now includes comprehensive unit tests for all core functionality:
+
+```bash
+# Run tests
+node test-industrial-midi.js
+```
+
+Test coverage includes:
+- **Utility Functions**: Random number generation, MIDI encoding, frequency conversion
+- **Pattern Generation**: Pitch variation, pattern generation, bass/lead patterns for all sections
+- **MIDI File Creation**: Header generation, track creation, complete file assembly
+- **Lyrics Generation**: Line generation, vocabulary usage, section-specific lyrics
+- **Edge Cases**: Extreme values, empty inputs, boundary conditions
+
+Current test results: **205 tests, 100% passing** ✓
+
 ## Recent Updates
 
-### Version 2.2 - Enhanced Lyrics & Compact UI (Latest)
+### Version 2.3 - Code Refactoring & Testing (Latest)
+- Extracted core logic into modular `industrial-midi.js` file
+- Added comprehensive unit test suite with 205 tests
+- Organized code into semantic sections for better maintainability
+- Added human-like timing variations and organic playback
+- Real-time parameter updates during playback
+- Enhanced sound synthesis with Tool-like complexity
+
+### Version 2.2 - Enhanced Lyrics & Compact UI
 - Enhanced AI-generated lyrics with industrial/electronic themes
 - Real-time lyric highlighting perfectly synced with song sections
 - One-click copy to clipboard and .txt export
