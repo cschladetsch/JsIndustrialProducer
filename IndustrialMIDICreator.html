@@ -2161,22 +2161,23 @@
             document.getElementById('loopBtn').classList.toggle('active', isLooping);
             
             if (isLooping) {
-                // Generate new song and start continuous playback
-                currentSeed = Date.now() + Math.random() * 10000;
-                updateSongSections();
+                document.getElementById('status').textContent = 'Continuous music mode enabled';
                 
-                if (songSections.length === 0) {
-                    // Use a default structure if none exists
-                    songSections = ['intro', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'outro'];
-                }
-                
-                document.getElementById('status').textContent = 'Continuous music mode...';
-                
+                // Only start playing if not already playing
                 if (!isPlaying) {
+                    // Generate new song and start continuous playback
+                    currentSeed = Date.now() + Math.random() * 10000;
+                    updateSongSections();
+                    
+                    if (songSections.length === 0) {
+                        // Use a default structure if none exists
+                        songSections = ['intro', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'outro'];
+                    }
+                    
                     playPreview();
                 }
             } else {
-                document.getElementById('status').textContent = isPlaying ? 'Playing full song...' : 'Ready';
+                document.getElementById('status').textContent = isPlaying ? 'Continuous mode disabled - will stop after current song' : 'Ready';
             }
         });
         
