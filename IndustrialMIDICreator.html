@@ -1240,16 +1240,53 @@
         }
         
         // Vary a pitch by semitones
-        function varyPitch(pitch, maxVariation, seed) {
-            const variation = Math.floor((seededRandom(seed) - 0.5) * 2 * maxVariation);
-            return Math.max(21, Math.min(108, pitch + variation)); // Keep within MIDI range
+        // Human-like pitch intervals (in semitones)
+        const humanIntervals = [0, 0, 0, 1, 2, 3, 4, 5, 7, 12, -1, -2, -3, -4, -5, -7, -12];
+        const smoothIntervals = [0, 1, 2, 3, -1, -2, -3]; // More common intervals
+        
+        function varyPitch(pitch, maxVariation, seed, previousPitch = null) {
+            // 70% chance of smooth movement, 30% chance of larger interval
+            const useSmooth = seededRandom(seed) < 0.7;
+            const intervals = useSmooth ? smoothIntervals : humanIntervals;
+            
+            // If we have a previous pitch, prefer stepwise motion
+            if (previousPitch !== null) {
+                const currentInterval = pitch - previousPitch;
+                // Bias towards continuing in the same direction or staying close
+                if (Math.abs(currentInterval) <= 3 && seededRandom(seed + 1) < 0.6) {
+                    // Continue in same direction with slight variation
+                    const direction = currentInterval === 0 ? 0 : currentInterval / Math.abs(currentInterval);
+                    const variation = Math.floor(seededRandom(seed + 2) * 3) * direction;
+                    return Math.max(21, Math.min(108, pitch + variation));
+                }
+            }
+            
+            // Otherwise pick a human-like interval
+            const interval = randomChoice(intervals, seed + 3);
+            return Math.max(21, Math.min(108, pitch + interval));
         }
         
-        // Generate variations of patterns
+        // Generate variations of patterns with smooth pitch movements
         function generatePatternVariation(basePattern, seed) {
+            let previousPitch = null;
+            
             return basePattern.map((note, index) => {
                 const noteSeed = seed + index * 1000;
-                const pitchVariation = note.pitch > 0 ? varyPitch(note.pitch, 2, noteSeed) : 0;
+                
+                // Handle pitch variation with smooth movements
+                let pitchVariation = note.pitch;
+                if (note.pitch > 0) {
+                    pitchVariation = varyPitch(note.pitch, 2, noteSeed, previousPitch);
+                    
+                    // 10% chance of adding a slight glide/bend effect (simulated by micro-timing)
+                    if (seededRandom(noteSeed + 10) < 0.1 && index > 0) {
+                        // This will be interpreted as a slight timing variation
+                        // suggesting a pitch bend in performance
+                    }
+                    
+                    previousPitch = pitchVariation;
+                }
+                
                 const velocityVariation = Math.floor(note.velocity + (seededRandom(noteSeed + 1) - 0.5) * 10);
                 const durationVariation = note.duration * (0.9 + seededRandom(noteSeed + 2) * 0.2);
                 
@@ -1603,6 +1640,20 @@
                 const section = songSections[currentSection];
                 document.getElementById('currentSectionLabel').textContent = 
                     `Section: ${section.toUpperCase()} (${currentSection + 1}/${songSections.length})`;
+                
+                // Highlight current section in structure editor
+                highlightCurrentSection(currentSection);
+            }
+        }
+        
+        function highlightCurrentSection(sectionIndex) {
+            // Remove playing class from all sections
+            const allSections = document.querySelectorAll('#structureEditor .section-block');
+            allSections.forEach(section => section.classList.remove('playing'));
+            
+            // Add playing class to current section
+            if (sectionIndex >= 0 && sectionIndex < allSections.length) {
+                allSections[sectionIndex].classList.add('playing');
             }
         }
         
@@ -1888,6 +1939,10 @@
             if (analyserCtx && analyserCanvas) {
                 analyserCtx.clearRect(0, 0, analyserCanvas.width, analyserCanvas.height);
             }
+            
+            // Remove playing class from all sections
+            const allSections = document.querySelectorAll('#structureEditor .section-block');
+            allSections.forEach(section => section.classList.remove('playing'));
             
             // Hide analyzer
             document.getElementById('analyzerContainer').style.display = 'none';
