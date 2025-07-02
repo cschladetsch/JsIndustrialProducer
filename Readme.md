@@ -64,14 +64,56 @@ The full song playback uses Web Audio API to create:
 - **Default**: 60
 - **Description**: Applies waveshaping distortion to the bass sounds during preview. Higher values create more industrial, gritty textures.
 
-## Usage Instructions
+## Quick Start
 
-1. **Open the Application**: Load `main.js` (which is actually an HTML file) in a modern web browser
-2. **Adjust Parameters**: Use the sliders to set your desired tempo, intensity, and distortion levels
-3. **Select Structure**: Choose a song structure from the dropdown menu
-4. **Generate Song**: Click "Generate Song" to create the MIDI data
-5. **Play Full Song**: Click "Play Full Song" to hear the complete synthesized version in your browser
-6. **Download**: Click "Download MIDI" to save the generated file
+### Running the Application
+
+1. **Clone the repository** (if you haven't already):
+   ```bash
+   git clone https://github.com/cschladetsch/JsTechnoProducer.git
+   cd JsTechnoProducer
+   ```
+
+2. **Open the application** in your web browser:
+   ```bash
+   # On Linux:
+   xdg-open IndustrialMIDICreator.html
+   
+   # On macOS:
+   open IndustrialMIDICreator.html
+   
+   # On Windows:
+   start IndustrialMIDICreator.html
+   ```
+
+   Or simply double-click the `IndustrialMIDICreator.html` file in your file manager.
+
+### Using the Application
+
+1. **Adjust Parameters**:
+   - **Tempo (BPM)**: 60-140 (default: 85)
+   - **Intensity**: 1-10 (default: 7) - Controls note velocity and filter cutoff
+   - **Distortion**: 0-100 (default: 60) - Applies waveshaping to bass sounds
+
+2. **Select Song Structure**:
+   - **Standard**: ~3 minutes - Classic pop/rock structure
+   - **Simple**: ~2.5 minutes - Basic verse-chorus format
+   - **Extended**: ~4 minutes - Extended with pre-choruses and double sections
+   - **Industrial**: ~3.5 minutes - Atmospheric with extended intros/outros
+
+3. **Generate and Play**:
+   - Click **"Generate Song"** to create the MIDI data
+   - Click **"Play Full Song"** to hear the complete track in your browser
+   - Click **"Stop"** to stop playback at any time
+   - Click **"Download MIDI"** to save the .mid file
+
+### NIN "The Day The World Went Away" Style Settings
+
+For a Nine Inch Nails industrial sound:
+- **Tempo**: 92 BPM
+- **Intensity**: 8-9
+- **Distortion**: 75-80
+- **Structure**: Industrial
 
 ## File Structure
 
@@ -83,6 +125,44 @@ JsTheDayTheWoldWentAway/
 ├── IndustrialMIDICreator.html    # Clean standalone version
 └── IndustrialMIDICreator_files/  # Related web assets
 ```
+
+## Playing MIDI Files
+
+### Option 1: Web Browser (Built-in)
+The application includes full Web Audio synthesis. Just click "Play Full Song" after generating.
+
+### Option 2: VLC Media Player
+VLC requires a soundfont to play MIDI files:
+```bash
+# Install FluidSynth and soundfont
+sudo apt install fluidsynth fluid-soundfont-gm
+
+# Then open the MIDI file in VLC
+vlc industrial_song.mid
+```
+
+### Option 3: TiMidity++ (Recommended for Linux)
+```bash
+# Install TiMidity++
+sudo apt install timidity timidity-interfaces-extra
+
+# Play the MIDI file
+timidity industrial_song.mid
+```
+
+### Option 4: Digital Audio Workstation (Best Quality)
+Import the MIDI into a DAW for professional results:
+
+**Free DAWs:**
+- **LMMS**: `sudo apt install lmms`
+- **Ardour**: `sudo apt install ardour`
+- **Tracktion Waveform**: Free version available
+
+**Commercial DAWs:**
+- Ableton Live
+- FL Studio
+- Logic Pro (Mac)
+- Reaper (60-day trial)
 
 ## Browser Compatibility
 
@@ -96,6 +176,23 @@ Tested and confirmed working on:
 - Firefox 88+
 - Safari 14+
 - Edge 90+
+
+## Troubleshooting
+
+### No Sound During Playback
+1. Check your system volume
+2. Ensure your browser allows audio playback (click elsewhere on the page first)
+3. Try a different browser
+
+### MIDI File Won't Play in Media Player
+- Install a soundfont (see "Playing MIDI Files" section above)
+- Use a dedicated MIDI player or DAW
+- Try the built-in web playback instead
+
+### Browser Issues
+- Clear browser cache
+- Disable ad blockers for local files
+- Make sure JavaScript is enabled
 
 ## Musical Theory
 

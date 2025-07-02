@@ -161,6 +161,15 @@
             background-color: #d69e2e;
         }
         
+        .section-block.instrumental {
+            background-color: #9f7aea;
+        }
+        
+        .section-block.breakdown {
+            background-color: #e53e3e;
+            border: 2px solid #c53030;
+        }
+        
         .playing {
             animation: pulse 1s infinite;
         }
@@ -217,6 +226,12 @@
             </div>
             
             <div class="control-group">
+                <label for="songLength">Song Length:</label>
+                <input type="range" id="songLength" min="0.5" max="3" step="0.1" value="1">
+                <span class="value" id="songLengthValue">1.0x</span>
+            </div>
+            
+            <div class="control-group">
                 <label for="structure">Song Structure:</label>
                 <select id="structure">
                     <option value="standard">Standard (Intro-Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro)</option>
@@ -251,10 +266,10 @@
         
         // Song structure definitions - Full length songs
         const structures = {
-            standard: ['intro', 'intro', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'verse', 'chorus', 'chorus', 'bridge', 'bridge', 'chorus', 'chorus', 'outro', 'outro'],
-            simple: ['intro', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'verse', 'chorus', 'chorus', 'outro'],
-            extended: ['intro', 'intro', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'bridge', 'bridge', 'chorus', 'chorus', 'chorus', 'outro', 'outro'],
-            industrial: ['intro', 'intro', 'intro', 'verse', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'verse', 'bridge', 'bridge', 'bridge', 'chorus', 'chorus', 'outro', 'outro', 'outro']
+            standard: ['intro', 'intro', 'verse', 'verse', 'instrumental', 'chorus', 'chorus', 'verse', 'verse', 'chorus', 'chorus', 'bridge', 'bridge', 'instrumental', 'chorus', 'chorus', 'outro', 'outro'],
+            simple: ['intro', 'verse', 'verse', 'chorus', 'chorus', 'instrumental', 'verse', 'verse', 'chorus', 'chorus', 'outro'],
+            extended: ['intro', 'intro', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'instrumental', 'verse', 'verse', 'pre-chorus', 'chorus', 'chorus', 'bridge', 'bridge', 'instrumental', 'chorus', 'chorus', 'chorus', 'outro', 'outro'],
+            industrial: ['intro', 'intro', 'intro', 'instrumental', 'verse', 'verse', 'verse', 'breakdown', 'chorus', 'chorus', 'verse', 'verse', 'instrumental', 'bridge', 'bridge', 'bridge', 'breakdown', 'chorus', 'chorus', 'outro', 'outro', 'outro']
         };
         
         // Bars per section (increased for full-length song)
@@ -264,8 +279,34 @@
             'pre-chorus': 4,
             chorus: 8,
             bridge: 8,
+            instrumental: 12,
+            breakdown: 6,
             outro: 8
         };
+        
+        // Time signatures for sections (like Tool/NIN)
+        const timeSignatures = {
+            intro: { numerator: 4, denominator: 4 },
+            verse: { numerator: 7, denominator: 8 },
+            'pre-chorus': { numerator: 5, denominator: 4 },
+            chorus: { numerator: 4, denominator: 4 },
+            bridge: { numerator: 7, denominator: 8 },
+            instrumental: { numerator: 9, denominator: 8 },
+            breakdown: { numerator: 5, denominator: 4 },
+            outro: { numerator: 4, denominator: 4 }
+        };
+        
+        // Randomize some time signatures for variety
+        function getRandomTimeSignature() {
+            const signatures = [
+                { numerator: 7, denominator: 8 },
+                { numerator: 5, denominator: 4 },
+                { numerator: 9, denominator: 8 },
+                { numerator: 6, denominator: 8 },
+                { numerator: 11, denominator: 8 }
+            ];
+            return signatures[Math.floor(Math.random() * signatures.length)];
+        }
         
         // Update slider values
         document.getElementById('tempo').addEventListener('input', (e) => {
@@ -278,6 +319,10 @@
         
         document.getElementById('distortion').addEventListener('input', (e) => {
             document.getElementById('distortionValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('songLength').addEventListener('input', (e) => {
+            document.getElementById('songLengthValue').textContent = e.target.value + 'x';
         });
         
         document.getElementById('structure').addEventListener('change', updateStructureDisplay);
@@ -346,7 +391,7 @@
             track.push((microsecondsPerQuarter >> 8) & 0xFF);
             track.push(microsecondsPerQuarter & 0xFF);
             
-            // Time signature (4/4)
+            // Initial time signature (4/4)
             track.push(0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
             
             // End of track
@@ -372,9 +417,18 @@
             
             let currentTick = 0;
             
+            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+            
             sections.forEach(section => {
                 const pattern = getBassPattern(section, intensity);
-                const barsInSection = barsPerSection[section] || 8;
+                const baseBars = barsPerSection[section] || 8;
+                const barsInSection = Math.round(baseBars * songLengthMultiplier);
+                // Randomize time signature for verses and bridges sometimes
+                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+                    timeSig = getRandomTimeSignature();
+                }
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
                 
                 for (let bar = 0; bar < barsInSection; bar++) {
                     pattern.forEach(note => {
@@ -421,9 +475,18 @@
             
             let currentTick = 0;
             
+            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+            
             sections.forEach(section => {
                 const pattern = getLeadPattern(section, intensity);
-                const barsInSection = barsPerSection[section] || 8;
+                const baseBars = barsPerSection[section] || 8;
+                const barsInSection = Math.round(baseBars * songLengthMultiplier);
+                // Randomize time signature for verses and bridges sometimes
+                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+                    timeSig = getRandomTimeSignature();
+                }
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
                 
                 for (let bar = 0; bar < barsInSection; bar++) {
                     pattern.forEach(note => {
@@ -475,15 +538,14 @@
                     { pitch: 36, velocity: 60, duration: 1 },
                     { pitch: 43, velocity: 55, duration: 1 }
                 ],
-                verse: [
+                verse: [ // 7/8 time
                     { pitch: 36, velocity: 70, duration: 0.5 },
                     { pitch: 36, velocity: 60, duration: 0.5 },
                     { pitch: 41, velocity: 65, duration: 0.5 },
                     { pitch: 36, velocity: 70, duration: 0.5 },
                     { pitch: 43, velocity: 65, duration: 0.5 },
                     { pitch: 41, velocity: 60, duration: 0.5 },
-                    { pitch: 36, velocity: 70, duration: 0.5 },
-                    { pitch: 36, velocity: 60, duration: 0.5 }
+                    { pitch: 36, velocity: 70, duration: 0.5 }
                 ],
                 chorus: [
                     { pitch: 36, velocity: 80, duration: 0.25 },
@@ -494,26 +556,41 @@
                     { pitch: 36, velocity: 85, duration: 0.5 },
                     { pitch: 36, velocity: 80, duration: 0.5 }
                 ],
-                'pre-chorus': [
-                    { pitch: 36, velocity: 75, duration: 0.5 },
-                    { pitch: 41, velocity: 70, duration: 0.5 },
-                    { pitch: 43, velocity: 75, duration: 0.5 },
-                    { pitch: 48, velocity: 70, duration: 0.5 },
-                    { pitch: 43, velocity: 75, duration: 0.5 },
-                    { pitch: 41, velocity: 70, duration: 0.5 },
-                    { pitch: 36, velocity: 75, duration: 0.5 },
-                    { pitch: 36, velocity: 70, duration: 0.5 }
+                'pre-chorus': [ // 5/4 time
+                    { pitch: 36, velocity: 75, duration: 0.8 },
+                    { pitch: 41, velocity: 70, duration: 0.8 },
+                    { pitch: 43, velocity: 75, duration: 0.8 },
+                    { pitch: 48, velocity: 70, duration: 0.8 },
+                    { pitch: 43, velocity: 75, duration: 0.8 }
                 ],
-                bridge: [
-                    { pitch: 41, velocity: 70, duration: 1 },
-                    { pitch: 43, velocity: 65, duration: 1 },
-                    { pitch: 46, velocity: 70, duration: 1 },
-                    { pitch: 48, velocity: 65, duration: 1 }
+                bridge: [ // 7/8 time
+                    { pitch: 41, velocity: 70, duration: 0.875 },
+                    { pitch: 43, velocity: 65, duration: 0.875 },
+                    { pitch: 46, velocity: 70, duration: 0.875 },
+                    { pitch: 48, velocity: 65, duration: 0.875 }
                 ],
                 outro: [
                     { pitch: 36, velocity: 60, duration: 2 },
                     { pitch: 41, velocity: 50, duration: 1 },
                     { pitch: 36, velocity: 40, duration: 1 }
+                ],
+                instrumental: [ // 9/8 time - complex pattern
+                    { pitch: 36, velocity: 85, duration: 0.333 },
+                    { pitch: 36, velocity: 75, duration: 0.333 },
+                    { pitch: 41, velocity: 80, duration: 0.333 },
+                    { pitch: 43, velocity: 85, duration: 0.5 },
+                    { pitch: 46, velocity: 80, duration: 0.5 },
+                    { pitch: 48, velocity: 85, duration: 0.5 },
+                    { pitch: 43, velocity: 80, duration: 0.5 },
+                    { pitch: 41, velocity: 85, duration: 0.5 },
+                    { pitch: 36, velocity: 90, duration: 0.5 }
+                ],
+                breakdown: [ // 5/4 time - heavy
+                    { pitch: 36, velocity: 95, duration: 1 },
+                    { pitch: 36, velocity: 90, duration: 0.5 },
+                    { pitch: 31, velocity: 95, duration: 0.5 }, // Lower bass
+                    { pitch: 36, velocity: 95, duration: 1 },
+                    { pitch: 29, velocity: 90, duration: 2 } // Sub bass
                 ]
             };
             
@@ -530,12 +607,12 @@
                 intro: [
                     { pitch: 0, velocity: 0, duration: 4 } // Rest for intro
                 ],
-                verse: [
+                verse: [ // 7/8 time
                     { pitch: 60, velocity: 60, duration: 0.5 },
                     { pitch: 0, velocity: 0, duration: 0.5 },
                     { pitch: 63, velocity: 55, duration: 0.5 },
                     { pitch: 65, velocity: 60, duration: 0.5 },
-                    { pitch: 0, velocity: 0, duration: 1 },
+                    { pitch: 0, velocity: 0, duration: 0.5 },
                     { pitch: 67, velocity: 65, duration: 1 }
                 ],
                 chorus: [
@@ -546,26 +623,38 @@
                     { pitch: 67, velocity: 85, duration: 1 },
                     { pitch: 70, velocity: 80, duration: 1 }
                 ],
-                'pre-chorus': [
-                    { pitch: 63, velocity: 65, duration: 0.5 },
-                    { pitch: 65, velocity: 70, duration: 0.5 },
-                    { pitch: 67, velocity: 65, duration: 0.5 },
-                    { pitch: 70, velocity: 70, duration: 0.5 },
-                    { pitch: 67, velocity: 75, duration: 0.5 },
-                    { pitch: 65, velocity: 70, duration: 0.5 },
-                    { pitch: 63, velocity: 65, duration: 0.5 },
-                    { pitch: 60, velocity: 70, duration: 0.5 }
+                'pre-chorus': [ // 5/4 time
+                    { pitch: 63, velocity: 65, duration: 0.8 },
+                    { pitch: 65, velocity: 70, duration: 0.8 },
+                    { pitch: 67, velocity: 65, duration: 0.8 },
+                    { pitch: 70, velocity: 70, duration: 0.8 },
+                    { pitch: 67, velocity: 75, duration: 0.8 }
                 ],
-                bridge: [
-                    { pitch: 65, velocity: 70, duration: 1 },
-                    { pitch: 67, velocity: 75, duration: 1 },
-                    { pitch: 70, velocity: 70, duration: 0.5 },
-                    { pitch: 72, velocity: 75, duration: 0.5 },
-                    { pitch: 70, velocity: 70, duration: 1 }
+                bridge: [ // 7/8 time
+                    { pitch: 65, velocity: 70, duration: 0.875 },
+                    { pitch: 67, velocity: 75, duration: 0.875 },
+                    { pitch: 70, velocity: 70, duration: 0.875 },
+                    { pitch: 72, velocity: 75, duration: 0.875 }
                 ],
                 outro: [
                     { pitch: 60, velocity: 50, duration: 2 },
                     { pitch: 0, velocity: 0, duration: 2 }
+                ],
+                instrumental: [ // 9/8 time - lead melody
+                    { pitch: 72, velocity: 85, duration: 0.333 },
+                    { pitch: 70, velocity: 80, duration: 0.333 },
+                    { pitch: 67, velocity: 85, duration: 0.333 },
+                    { pitch: 65, velocity: 80, duration: 0.5 },
+                    { pitch: 67, velocity: 85, duration: 0.5 },
+                    { pitch: 70, velocity: 80, duration: 0.5 },
+                    { pitch: 72, velocity: 85, duration: 0.5 },
+                    { pitch: 75, velocity: 90, duration: 0.5 },
+                    { pitch: 77, velocity: 85, duration: 0.5 }
+                ],
+                breakdown: [ // 5/4 time - minimal lead
+                    { pitch: 0, velocity: 0, duration: 2 }, // Rest
+                    { pitch: 48, velocity: 90, duration: 1 }, // Stab
+                    { pitch: 0, velocity: 0, duration: 2 } // Rest
                 ]
             };
             
@@ -603,10 +692,19 @@
             let totalBeats = 0;
             // Calculate total beats for the full song
             let maxBeats = 0;
+            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+            
             songSections.forEach(section => {
                 // Get bars for this section type
-                const bars = barsPerSection[section] || 8;
-                maxBeats += bars * 4; // 4 beats per bar
+                const baseBars = barsPerSection[section] || 8;
+                const bars = Math.round(baseBars * songLengthMultiplier);
+                // Randomize time signature for verses and bridges sometimes
+                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+                    timeSig = getRandomTimeSignature();
+                }
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                maxBeats += bars * beatsPerBar;
             });
             
             playbackInterval = setInterval(() => {
@@ -626,7 +724,15 @@
                 document.getElementById('progressFill').style.width = progress + '%';
                 
                 // Move to next section
-                const sectionBeats = (barsPerSection[section] || 8) * 4;
+                const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                const baseBars = barsPerSection[section] || 8;
+                // Randomize time signature for verses and bridges sometimes
+                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+                    timeSig = getRandomTimeSignature();
+                }
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
                 if (currentBeat >= sectionBeats) {
                     currentBeat = 0;
                     currentSection++;
@@ -656,40 +762,72 @@
                 verse: [82.41, 82.41, 92.5, 98],
                 chorus: [82.41, 110, 98, 92.5],
                 bridge: [92.5, 98, 103.83, 110],
-                outro: [82.41, 92.5, 82.41, 82.41]
+                outro: [82.41, 92.5, 82.41, 82.41],
+                instrumental: [82.41, 87.31, 92.5, 98, 103.83, 110, 98, 92.5, 82.41],
+                breakdown: [73.42, 73.42, 65.41, 73.42, 61.74] // Lower frequencies
             };
             
             const bassFreq = bassFreqs[section] || bassFreqs.verse;
             bassOsc.frequency.value = bassFreq[beat % bassFreq.length] * 0.5;
             bassOsc.type = 'sawtooth';
             
+            // Add second detuned oscillator for thicker sound
+            const bassOsc2 = audioContext.createOscillator();
+            bassOsc2.frequency.value = bassFreq[beat % bassFreq.length] * 0.5 * 0.99; // Slight detune
+            bassOsc2.type = 'square';
+            
+            // Add sub bass oscillator
+            const subBassOsc = audioContext.createOscillator();
+            subBassOsc.frequency.value = bassFreq[beat % bassFreq.length] * 0.25; // Octave lower
+            subBassOsc.type = 'sine';
+            
+            // Sub bass gain
+            const subBassGain = audioContext.createGain();
+            subBassGain.gain.value = 0.3 + (intensity * 0.02);
+            
             bassOsc.connect(bassDistortion);
+            bassOsc2.connect(bassDistortion);
             bassDistortion.connect(bassGain);
             bassGain.connect(audioContext.destination);
             
-            bassGain.gain.value = 0.15 + (intensity * 0.02);
+            // Connect sub bass (no distortion)
+            subBassOsc.connect(subBassGain);
+            subBassGain.connect(audioContext.destination);
+            
+            bassGain.gain.value = 0.2 + (intensity * 0.03); // Louder bass
             bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
             
             bassOsc.start();
+            bassOsc2.start();
+            subBassOsc.start();
             bassOsc.stop(audioContext.currentTime + 0.2);
+            bassOsc2.stop(audioContext.currentTime + 0.2);
+            subBassOsc.stop(audioContext.currentTime + 0.2);
+            
+            // Sub bass envelope
+            subBassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
             
             // Lead line (only in certain sections)
             if ((section === 'verse' && beat % 2 === 0) || 
                 (section === 'chorus') || 
-                (section === 'bridge' && beat % 4 < 2)) {
+                (section === 'bridge' && beat % 4 < 2) ||
+                (section === 'instrumental') ||
+                (section === 'breakdown' && beat % 5 === 2)) {
                 
                 const leadOsc = audioContext.createOscillator();
                 const leadGain = audioContext.createGain();
                 const leadFilter = audioContext.createBiquadFilter();
                 
                 leadFilter.type = 'lowpass';
-                leadFilter.frequency.value = 1000 + (intensity * 200);
-                leadFilter.Q.value = 5;
+                leadFilter.frequency.value = 800 + (intensity * 150); // More aggressive filter
+                leadFilter.Q.value = 10; // Higher resonance
                 
                 const leadFreqs = {
                     verse: [261.63, 0, 293.66, 329.63],
                     chorus: [523.25, 493.88, 440, 392],
-                    bridge: [329.63, 349.23, 392, 440]
+                    bridge: [329.63, 349.23, 392, 440],
+                    instrumental: [523.25, 493.88, 440, 392, 440, 493.88, 523.25, 587.33, 622.25],
+                    breakdown: [0, 0, 196, 0, 0] // Sparse stabs
                 };
                 
                 const leadFreq = leadFreqs[section] || leadFreqs.verse;
@@ -699,11 +837,15 @@
                     leadOsc.frequency.value = freq;
                     leadOsc.type = 'square';
                     
+                    // Add pitch bend for more industrial sound
+                    leadOsc.frequency.setValueAtTime(freq * 0.95, audioContext.currentTime);
+                    leadOsc.frequency.exponentialRampToValueAtTime(freq, audioContext.currentTime + 0.05);
+                    
                     leadOsc.connect(leadFilter);
                     leadFilter.connect(leadGain);
                     leadGain.connect(audioContext.destination);
                     
-                    leadGain.gain.value = 0.08 + (intensity * 0.01);
+                    leadGain.gain.value = 0.12 + (intensity * 0.015); // Louder lead
                     leadGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
                     
                     leadOsc.start();
