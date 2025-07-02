@@ -9,9 +9,11 @@ JsTechnoProducer is a web-based application that generates industrial/techno MID
 ### Core Functionality
 - **Real-time MIDI Generation**: Create complete MIDI songs with multiple tracks instantly
 - **Full Song Playback**: Listen to the entire song directly in the browser using Web Audio API
-- **Customizable Song Structure**: Choose from multiple predefined song arrangements
-- **Parameter Control**: Adjust tempo, intensity, and distortion levels
-- **Multi-track Output**: Generates bass and lead tracks with tempo information
+- **Drag & Drop Song Builder**: Visually arrange song sections with intuitive drag-and-drop interface
+- **Customizable Song Structure**: Choose presets or build completely custom arrangements
+- **Parameter Control**: Adjust tempo, intensity, distortion, and song length
+- **Multi-track Output**: Generates bass and lead tracks with complex time signatures
+- **Randomization**: Each generated song is unique with seed-based variations
 
 ### User Interface
 - **Dark Industrial Theme**: Visually appealing dark interface matching the industrial music aesthetic
@@ -94,12 +96,22 @@ The full song playback uses Web Audio API to create:
    - **Tempo (BPM)**: 60-140 (default: 85)
    - **Intensity**: 1-10 (default: 7) - Controls note velocity and filter cutoff
    - **Distortion**: 0-100 (default: 60) - Applies waveshaping to bass sounds
+   - **Song Length**: 0.5x-2x (default: 1x) - Multiplier for ~5 minute base length
 
-2. **Select Song Structure**:
-   - **Standard**: ~3 minutes - Classic pop/rock structure
-   - **Simple**: ~2.5 minutes - Basic verse-chorus format
-   - **Extended**: ~4 minutes - Extended with pre-choruses and double sections
-   - **Industrial**: ~3.5 minutes - Atmospheric with extended intros/outros
+2. **Create Song Structure (NEW: Drag & Drop Interface)**:
+   - **Preset Buttons**: Click Standard, Simple, Extended, or Industrial to load preset structures
+   - **Drag Sections**: Drag sections from the palette to build custom song structures
+   - **Reorder**: Drag sections within the structure editor to reorder them
+   - **Remove**: Hover over a section and click the × button to remove it
+   - **Available Sections**:
+     - INTRO - Atmospheric opening
+     - VERSE - Main melodic sections
+     - PRE-CHORUS - Build-up sections
+     - CHORUS - High-energy hooks
+     - BRIDGE - Contrasting middle sections
+     - INSTRUMENTAL - Instrumental breaks
+     - BREAKDOWN - Heavy rhythmic sections
+     - OUTRO - Closing sections
 
 3. **Generate and Play**:
    - Click **"Generate Song"** to create the MIDI data

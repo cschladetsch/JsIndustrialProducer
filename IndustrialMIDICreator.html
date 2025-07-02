@@ -170,6 +170,126 @@
             border: 2px solid #c53030;
         }
         
+        /* Drag and drop styles */
+        .section-palette {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .section-palette h4 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .palette-sections {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .draggable-section {
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.2s;
+        }
+        
+        .draggable-section:hover {
+            transform: scale(1.05);
+        }
+        
+        .draggable-section.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .structure-editor {
+            min-height: 50px;
+            background-color: #2a2a2a;
+            border: 2px dashed #555;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+            position: relative;
+        }
+        
+        .structure-editor.drag-over {
+            border-color: #4ecdc4;
+            background-color: #333;
+        }
+        
+        .structure-editor .section-block {
+            cursor: move;
+            position: relative;
+        }
+        
+        .structure-editor .section-block:hover {
+            transform: scale(1.05);
+        }
+        
+        .structure-editor .section-block .remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: none;
+            font-size: 12px;
+            line-height: 1;
+        }
+        
+        .structure-editor .section-block:hover .remove-btn {
+            display: block;
+        }
+        
+        .drop-indicator {
+            width: 2px;
+            height: 30px;
+            background-color: #4ecdc4;
+            position: absolute;
+            display: none;
+            pointer-events: none;
+        }
+        
+        .structure-info {
+            color: #888;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .preset-btn {
+            background-color: #444;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 5px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .preset-btn:hover {
+            background-color: #555;
+            border-color: #4ecdc4;
+        }
+        
         .playing {
             animation: pulse 1s infinite;
         }
@@ -203,7 +323,33 @@
         
         <div class="song-structure">
             <h3>Song Structure</h3>
-            <div class="structure-display" id="structureDisplay"></div>
+            
+            <div class="preset-buttons">
+                <button class="preset-btn" data-preset="standard">Standard</button>
+                <button class="preset-btn" data-preset="simple">Simple</button>
+                <button class="preset-btn" data-preset="extended">Extended</button>
+                <button class="preset-btn" data-preset="industrial">Industrial</button>
+            </div>
+            
+            <div class="section-palette">
+                <h4>Available Sections (drag to add):</h4>
+                <div class="palette-sections" id="sectionPalette">
+                    <div class="section-block intro draggable-section" draggable="true" data-section="intro">INTRO</div>
+                    <div class="section-block verse draggable-section" draggable="true" data-section="verse">VERSE</div>
+                    <div class="section-block pre-chorus draggable-section" draggable="true" data-section="pre-chorus">PRE-CHORUS</div>
+                    <div class="section-block chorus draggable-section" draggable="true" data-section="chorus">CHORUS</div>
+                    <div class="section-block bridge draggable-section" draggable="true" data-section="bridge">BRIDGE</div>
+                    <div class="section-block instrumental draggable-section" draggable="true" data-section="instrumental">INSTRUMENTAL</div>
+                    <div class="section-block breakdown draggable-section" draggable="true" data-section="breakdown">BREAKDOWN</div>
+                    <div class="section-block outro draggable-section" draggable="true" data-section="outro">OUTRO</div>
+                </div>
+            </div>
+            
+            <div class="structure-editor" id="structureEditor">
+                <div class="drop-indicator" id="dropIndicator"></div>
+            </div>
+            
+            <div class="structure-info" id="structureInfo">Drag sections from above or click a preset to start</div>
         </div>
         
         <div class="controls">
@@ -231,15 +377,6 @@
                 <span class="value" id="songLengthValue">1.0x (~5 min)</span>
             </div>
             
-            <div class="control-group">
-                <label for="structure">Song Structure:</label>
-                <select id="structure">
-                    <option value="standard">Standard (Intro-Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro)</option>
-                    <option value="simple">Simple (Verse-Chorus-Verse-Chorus)</option>
-                    <option value="extended">Extended (with double choruses)</option>
-                    <option value="industrial">Industrial (atmospheric intro/outro)</option>
-                </select>
-            </div>
         </div>
         
         <div class="button-group">
@@ -264,6 +401,17 @@
         let currentBeat = 0;
         let songSections = [];
         let currentSeed = Date.now(); // Random seed for variation
+        
+        // Seeded random number generator
+        function seededRandom(seed) {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        }
+        
+        // Random choice from array with seed
+        function randomChoice(arr, seed) {
+            return arr[Math.floor(seededRandom(seed) * arr.length)];
+        }
         
         // Song structure definitions - Full length songs
         const structures = {
@@ -327,20 +475,176 @@
             document.getElementById('songLengthValue').textContent = e.target.value + 'x (~' + minutes + ' min)';
         });
         
-        document.getElementById('structure').addEventListener('change', updateStructureDisplay);
+        // Drag and drop functionality
+        let draggedElement = null;
+        let draggedIndex = null;
+        let dropIndicator = document.getElementById('dropIndicator');
         
-        function updateStructureDisplay() {
-            const structureType = document.getElementById('structure').value;
-            const sections = structures[structureType];
-            const display = document.getElementById('structureDisplay');
+        // Initialize drag and drop for palette sections
+        document.querySelectorAll('.draggable-section').forEach(element => {
+            element.addEventListener('dragstart', handleDragStart);
+            element.addEventListener('dragend', handleDragEnd);
+        });
+        
+        // Initialize structure editor
+        const structureEditor = document.getElementById('structureEditor');
+        structureEditor.addEventListener('dragover', handleDragOver);
+        structureEditor.addEventListener('drop', handleDrop);
+        structureEditor.addEventListener('dragleave', handleDragLeave);
+        
+        // Initialize preset buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const preset = e.target.dataset.preset;
+                loadPreset(preset);
+            });
+        });
+        
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            draggedElement.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('section', e.target.dataset.section);
             
-            display.innerHTML = sections.map(section => 
-                `<div class="section-block ${section}">${section.toUpperCase()}</div>`
-            ).join('');
+            if (e.target.parentElement === structureEditor) {
+                draggedIndex = Array.from(structureEditor.children).indexOf(e.target);
+                e.dataTransfer.effectAllowed = 'move';
+            }
         }
         
-        // Initialize structure display
-        updateStructureDisplay();
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedElement = null;
+            draggedIndex = null;
+            dropIndicator.style.display = 'none';
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            structureEditor.classList.add('drag-over');
+            
+            const afterElement = getDragAfterElement(structureEditor, e.clientX);
+            if (afterElement == null) {
+                dropIndicator.style.left = (structureEditor.offsetWidth - 2) + 'px';
+            } else {
+                dropIndicator.style.left = (afterElement.offsetLeft - 4) + 'px';
+            }
+            dropIndicator.style.display = 'block';
+        }
+        
+        function handleDragLeave(e) {
+            if (e.target === structureEditor) {
+                structureEditor.classList.remove('drag-over');
+                dropIndicator.style.display = 'none';
+            }
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            structureEditor.classList.remove('drag-over');
+            dropIndicator.style.display = 'none';
+            
+            const section = e.dataTransfer.getData('section');
+            const afterElement = getDragAfterElement(structureEditor, e.clientX);
+            
+            if (draggedIndex !== null) {
+                // Reordering existing element
+                if (afterElement == null) {
+                    structureEditor.appendChild(draggedElement);
+                } else {
+                    structureEditor.insertBefore(draggedElement, afterElement);
+                }
+            } else if (section) {
+                // Adding new element from palette
+                const newSection = createSectionElement(section);
+                if (afterElement == null) {
+                    structureEditor.appendChild(newSection);
+                } else {
+                    structureEditor.insertBefore(newSection, afterElement);
+                }
+            }
+            
+            updateStructureInfo();
+            updateSongSections();
+        }
+        
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.section-block:not(.dragging)')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        
+        function createSectionElement(section) {
+            const element = document.createElement('div');
+            element.className = `section-block ${section}`;
+            element.textContent = section.toUpperCase();
+            element.draggable = true;
+            element.dataset.section = section;
+            
+            // Add remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                element.remove();
+                updateStructureInfo();
+                updateSongSections();
+            };
+            element.appendChild(removeBtn);
+            
+            // Add drag event listeners
+            element.addEventListener('dragstart', handleDragStart);
+            element.addEventListener('dragend', handleDragEnd);
+            
+            return element;
+        }
+        
+        function loadPreset(preset) {
+            structureEditor.innerHTML = '<div class="drop-indicator" id="dropIndicator"></div>';
+            dropIndicator = document.getElementById('dropIndicator');
+            
+            structures[preset].forEach(section => {
+                structureEditor.appendChild(createSectionElement(section));
+            });
+            
+            updateStructureInfo();
+            updateSongSections();
+        }
+        
+        function updateStructureInfo() {
+            const sections = structureEditor.querySelectorAll('.section-block');
+            const info = document.getElementById('structureInfo');
+            
+            if (sections.length === 0) {
+                info.textContent = 'Drag sections from above or click a preset to start';
+            } else {
+                const totalBars = Array.from(sections).reduce((sum, section) => {
+                    return sum + (barsPerSection[section.dataset.section] || 16);
+                }, 0);
+                const tempo = parseInt(document.getElementById('tempo').value);
+                const lengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                const minutes = Math.round((totalBars * 4 * 60) / (tempo * 4) * lengthMultiplier);
+                info.textContent = `${sections.length} sections, ~${minutes} minutes at ${tempo} BPM`;
+            }
+        }
+        
+        function updateSongSections() {
+            const sections = structureEditor.querySelectorAll('.section-block');
+            songSections = Array.from(sections).map(section => section.dataset.section);
+        }
+        
+        // Initialize with standard preset
+        loadPreset('standard');
         
         // MIDI generation with song structure
         function generateMIDI() {
@@ -349,21 +653,14 @@
             const tempo = parseInt(document.getElementById('tempo').value);
             const intensity = parseInt(document.getElementById('intensity').value);
             const distortion = parseInt(document.getElementById('distortion').value);
-            const structureType = document.getElementById('structure').value;
             
-            // Randomly shuffle some sections for variety
-            let baseStructure = [...structures[structureType]];
+            // Get current song structure from drag-drop editor
+            updateSongSections();
             
-            // Sometimes swap verse and bridge positions
-            if (seededRandom(currentSeed + 1000) > 0.5) {
-                for (let i = 0; i < baseStructure.length - 1; i++) {
-                    if (baseStructure[i] === 'verse' && baseStructure[i + 1] === 'verse' && seededRandom(currentSeed + i) > 0.6) {
-                        baseStructure[i] = 'instrumental';
-                    }
-                }
+            if (songSections.length === 0) {
+                document.getElementById('status').textContent = 'Please add sections to the song structure!';
+                return;
             }
-            
-            songSections = baseStructure;
             
             // Create MIDI file structure
             const ticksPerQuarter = 480;
@@ -739,9 +1036,17 @@
             const tempo = parseInt(document.getElementById('tempo').value);
             const intensity = parseInt(document.getElementById('intensity').value);
             const distortion = parseInt(document.getElementById('distortion').value) / 100;
-            const structureType = document.getElementById('structure').value;
             
-            songSections = structures[structureType];
+            // Get current song structure from drag-drop editor
+            updateSongSections();
+            
+            if (songSections.length === 0) {
+                document.getElementById('status').textContent = 'Please add sections to the song structure!';
+                isPlaying = false;
+                document.getElementById('status').classList.remove('playing');
+                document.getElementById('progressBar').style.display = 'none';
+                return;
+            }
             
             const beatDuration = 60 / tempo;
             let totalBeats = 0;
