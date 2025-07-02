@@ -76,10 +76,11 @@ The preview feature uses Web Audio API to create:
 
 ```
 JsTheDayTheWoldWentAway/
-├── Readme              # Brief project identifier
-├── Readme.md           # This comprehensive documentation
-├── main.js             # Main application file (HTML/CSS/JavaScript)
-└── Industrial MIDI Creator _ Claude _ Claude_files/  # Related web assets
+├── Readme                        # Brief project identifier
+├── Readme.md                     # This comprehensive documentation
+├── main.js                       # Main application file (HTML/CSS/JavaScript)
+├── IndustrialMIDICreator.html    # Clean standalone version
+└── IndustrialMIDICreator_files/  # Related web assets
 ```
 
 ## Browser Compatibility
