@@ -2047,6 +2047,7 @@
         
         // Play preview using Web Audio API
         function playPreview() {
+            console.log('playPreview called', { isPlaying, isPaused });
             try {
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -2056,7 +2057,10 @@
                 return;
             }
             
-            if (isPlaying) return;
+            if (isPlaying) {
+                console.log('Already playing, returning early');
+                return;
+            }
             
             if (!midiData) {
                 currentSeed = Date.now() + Math.random() * 10000;
@@ -2570,6 +2574,7 @@
             }
         });
         document.getElementById('playBtn').addEventListener('click', () => {
+            console.log('Play button clicked', { isPlaying, midiData: !!midiData, songSections });
             isLooping = false;
             playPreview();
         });
