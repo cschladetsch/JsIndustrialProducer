@@ -794,12 +794,21 @@
                 // Update vocal text display
                 const vocalText = document.getElementById('vocalText');
                 vocalText.textContent = text;
+                vocalText.style.opacity = '1';
                 
                 // Re-trigger animation
                 vocalText.style.animation = 'none';
                 setTimeout(() => {
                     vocalText.style.animation = 'vocalPulse 2s ease-in-out';
                 }, 10);
+                
+                // Clear waiting text after animation
+                setTimeout(() => {
+                    if (vocalText.textContent === text) {
+                        vocalText.textContent = 'Waiting...';
+                        vocalText.style.opacity = '0.5';
+                    }
+                }, 2500);
                 
                 // Create phonemes
                 const phonemes = text.toLowerCase().split('').map(char => {
@@ -1462,7 +1471,14 @@
                 // Show UI elements
                 document.getElementById('progressBar').style.display = 'block';
                 document.getElementById('vocalOutputContainer').style.display = 'block';
-                document.getElementById('vocalText').textContent = '...';
+                document.getElementById('vocalText').textContent = 'Waiting...';
+                document.getElementById('vocalText').style.opacity = '0.5';
+                
+                // Update vocal type display
+                const vocalType = document.getElementById('vocals').value;
+                document.getElementById('vocalTypeDisplay').textContent = vocalType.charAt(0).toUpperCase() + vocalType.slice(1);
+                document.getElementById('vocalBeatDisplay').textContent = '0';
+                document.getElementById('nextVocalDisplay').textContent = '-';
                 
                 // Reset state
                 this.audioEngine.isPlaying = true;
@@ -1637,6 +1653,9 @@
                         sectionStateElement.textContent = section.toUpperCase();
                     }
                     
+                    // Update vocal beat display
+                    document.getElementById('vocalBeatDisplay').textContent = this.audioEngine.currentBeat;
+                    
                     // Update section progress
                     const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
                     const baseBars = this.songStructure.barsPerSection[section] || 8;
@@ -1658,6 +1677,26 @@
 
             checkVocals(section) {
                 const vocalType = document.getElementById('vocals').value;
+                
+                // Calculate next vocal beat
+                let nextVocalBeat = '-';
+                if (vocalType !== 'off') {
+                    if (section === 'chorus') {
+                        nextVocalBeat = Math.ceil(this.audioEngine.currentBeat / 8) * 8;
+                    } else if (section === 'verse') {
+                        nextVocalBeat = Math.ceil(this.audioEngine.currentBeat / 16) * 16;
+                    } else if (section === 'bridge') {
+                        nextVocalBeat = Math.ceil(this.audioEngine.currentBeat / 12) * 12;
+                    } else if (section === 'breakdown') {
+                        nextVocalBeat = Math.ceil(this.audioEngine.currentBeat / 4) * 4;
+                    }
+                    
+                    if (nextVocalBeat <= this.audioEngine.currentBeat) {
+                        nextVocalBeat = '-';
+                    }
+                }
+                document.getElementById('nextVocalDisplay').textContent = nextVocalBeat;
+                
                 if (vocalType !== 'off' && this.vocalSynth.shouldVocalize(section, this.audioEngine.currentBeat)) {
                     const lyricText = this.lyricsGen.getCurrentLyricText(this.audioEngine.currentSection, this.audioEngine.currentBeat);
                     if (lyricText) {
@@ -2011,6 +2050,20 @@
             <div class="vocal-output-display" id="vocalOutputDisplay">
                 <div class="section-state" id="sectionState">INTRO</div>
                 <span class="vocal-text" id="vocalText">...</span>
+            </div>
+            <div class="vocal-info">
+                <div class="vocal-info-item">
+                    <span class="vocal-label">Type:</span>
+                    <span id="vocalTypeDisplay">-</span>
+                </div>
+                <div class="vocal-info-item">
+                    <span class="vocal-label">Beat:</span>
+                    <span id="vocalBeatDisplay">0</span>
+                </div>
+                <div class="vocal-info-item">
+                    <span class="vocal-label">Next vocal:</span>
+                    <span id="nextVocalDisplay">-</span>
+                </div>
             </div>
         </div>
     </div>

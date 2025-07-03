@@ -634,3 +634,31 @@ button:active {
     50% { opacity: 1; transform: scale(1.1); }
     100% { opacity: 0.8; transform: scale(1); }
 }
+
+.vocal-info {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #333;
+}
+
+.vocal-info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.vocal-label {
+    color: #888;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.vocal-info-item span:last-child {
+    color: #4ecdc4;
+    font-size: 14px;
+    font-weight: bold;
+}
