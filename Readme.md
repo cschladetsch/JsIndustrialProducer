@@ -298,7 +298,17 @@ Current test results: **205 tests, 100% passing** ✓
 
 ## Recent Updates
 
-### Version 2.3 - Code Refactoring & Testing (Latest)
+### Version 2.4 - Playback & Vocal Output Fixes (Latest)
+- Fixed audio playback stopping after ~30 seconds
+- Enhanced Vocal Output section with detailed real-time information:
+  - Current vocal type display
+  - Beat counter within sections
+  - Next vocal prediction
+  - Visual feedback between vocals
+- Improved progress bar accuracy with proper beat counting
+- Added debug logging for troubleshooting
+
+### Version 2.3 - Code Refactoring & Testing
 - Extracted core logic into modular `industrial-midi.js` file
 - Added comprehensive unit test suite with 205 tests
 - Organized code into semantic sections for better maintainability
