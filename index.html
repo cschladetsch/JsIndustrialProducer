@@ -73,6 +73,15 @@
             playSection(section, beat, intensity, distortion, sectionIndex, seed) {
                 if (!this.audioContext || !this.masterGain) return;
                 
+                // Limit concurrent oscillators to prevent audio issues
+                if (this.activeOscillators.length > 50) {
+                    this.cleanupOscillators();
+                    if (this.activeOscillators.length > 80) {
+                        console.warn('Too many oscillators, skipping beat');
+                        return;
+                    }
+                }
+                
                 const now = this.audioContext.currentTime;
                 const beatDuration = 60 / this.currentTempo;
                 const rng = this.seededRandom(seed + sectionIndex + beat);
@@ -330,6 +339,7 @@
                     lfoGain.connect(filter.frequency);
                     lfo.start(time);
                     lfo.stop(time + duration);
+                    this.activeOscillators.push({ osc: lfo, stopTime: time + duration });
                 }
                 
                 const volume = velocity * 0.3;
@@ -605,17 +615,30 @@
             }
 
             cleanupOscillators() {
-                const now = this.audioContext ? this.audioContext.currentTime : 0;
-                this.activeOscillators = this.activeOscillators.filter(item => {
+                if (!this.audioContext) return;
+                
+                const now = this.audioContext.currentTime;
+                const toRemove = [];
+                
+                this.activeOscillators = this.activeOscillators.filter((item, index) => {
+                    // Remove oscillators that should have stopped
                     if (item.stopTime <= now + 0.1) {
                         try {
-                            item.osc.stop(now);
-                            item.osc.disconnect();
-                        } catch (e) {}
+                            // Ensure it's stopped and disconnected
+                            if (item.osc.stop) item.osc.stop(now);
+                            if (item.osc.disconnect) item.osc.disconnect();
+                        } catch (e) {
+                            // Already stopped
+                        }
                         return false;
                     }
                     return true;
                 });
+                
+                // Log cleanup for debugging
+                if (this.activeOscillators.length > 100) {
+                    console.warn(`High oscillator count: ${this.activeOscillators.length}`);
+                }
             }
         }
 
@@ -1735,27 +1758,39 @@
                 
                 // Start playback loop
                 this.scheduleNextBeat = () => {
-                    if (this.isPaused) return;
-                    
-                    if (this.audioEngine.currentSection >= sections.length) {
-                        if (this.isLooping) {
-                            this.handleLoop(sections);
-                            return;
-                        } else {
-                            console.log(`Song finished: ${this.audioEngine.totalBeats} beats played`);
+                    try {
+                        if (this.isPaused || !this.audioEngine.isPlaying) return;
+                        
+                        if (this.audioEngine.currentSection >= sections.length) {
+                            if (this.isLooping) {
+                                this.handleLoop(sections);
+                                return;
+                            } else {
+                                console.log(`Song finished: ${this.audioEngine.totalBeats} beats played`);
+                                this.stop();
+                                return;
+                            }
+                        }
+                        
+                        // Play current beat
+                        const section = sections[this.audioEngine.currentSection];
+                        if (!section) {
+                            console.error('Invalid section at index:', this.audioEngine.currentSection);
                             this.stop();
                             return;
                         }
+                        
+                        this.playBeat(section, sections);
+                        
+                        // Schedule next beat
+                        const beatDuration = 60 / this.audioEngine.currentTempo;
+                        const nextBeatTime = beatDuration * 250; // Quarter note in milliseconds
+                        this.audioEngine.playbackInterval = setTimeout(this.scheduleNextBeat, nextBeatTime);
+                    } catch (error) {
+                        console.error('Error in scheduleNextBeat:', error);
+                        this.showStatus('Playback error - stopping');
+                        this.stop();
                     }
-                    
-                    // Play current beat
-                    const section = sections[this.audioEngine.currentSection];
-                    this.playBeat(section, sections);
-                    
-                    // Schedule next beat
-                    const beatDuration = 60 / this.audioEngine.currentTempo;
-                    const nextBeatTime = beatDuration * 250; // Quarter note in milliseconds
-                    this.audioEngine.playbackInterval = setTimeout(this.scheduleNextBeat, nextBeatTime);
                 };
                 
                 this.scheduleNextBeat();
@@ -1821,6 +1856,11 @@
                             this.audioEngine.currentSection,
                             this.currentSeed
                         );
+                    }
+                    
+                    // Clean up oscillators periodically to prevent memory issues
+                    if (this.audioEngine.currentBeat % 16 === 0) {
+                        this.audioEngine.cleanupOscillators();
                     }
                 }, timingOffset);
                 
@@ -2031,7 +2071,9 @@
                     this.showStatus('Continuous music mode... (New variation)');
                     
                     // Continue playback
-                    this.scheduleNextBeat();
+                    if (this.isLooping && this.audioEngine.isPlaying) {
+                        this.scheduleNextBeat();
+                    }
                 }, 500);
             }
 
