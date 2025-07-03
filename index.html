@@ -1478,11 +1478,12 @@
                 this.scheduleNextBeat = () => {
                     if (this.isPaused) return;
                     
-                    if (this.audioEngine.totalBeats >= this.maxBeats || this.audioEngine.currentSection >= sections.length) {
+                    if (this.audioEngine.currentSection >= sections.length) {
                         if (this.isLooping) {
                             this.handleLoop(sections);
                             return;
                         } else {
+                            console.log(`Song finished: ${this.audioEngine.totalBeats} beats played`);
                             this.stop();
                             return;
                         }
@@ -1494,7 +1495,7 @@
                     
                     // Schedule next beat
                     const beatDuration = 60 / this.audioEngine.currentTempo;
-                    const nextBeatTime = beatDuration * 250; // Quarter note
+                    const nextBeatTime = beatDuration * 250; // Quarter note in milliseconds
                     this.audioEngine.playbackInterval = setTimeout(this.scheduleNextBeat, nextBeatTime);
                 };
                 
@@ -1522,13 +1523,15 @@
                     const bars = Math.round(baseBars * songLengthMultiplier);
                     const timeSig = this.sectionTimeSignatures[index];
                     const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
-                    this.maxBeats += bars * beatsPerBar;
+                    const sectionBeats = bars * beatsPerBar;
+                    this.maxBeats += sectionBeats;
                     
                     const beatDuration = 60 / this.audioEngine.currentTempo;
-                    const sectionDuration = bars * beatsPerBar * beatDuration;
+                    const sectionDuration = sectionBeats * beatDuration * 0.25; // Quarter note duration
                     this.totalSongDuration += sectionDuration;
                 });
                 
+                console.log(`Song parameters: ${this.maxBeats} beats, ${this.totalSongDuration} seconds`);
                 this.audioEngine.totalSongDuration = this.totalSongDuration;
                 this.audioEngine.startTime = this.audioEngine.audioContext.currentTime;
             }
@@ -1586,9 +1589,33 @@
             }
 
             updateUI(section, sections) {
-                // Update progress
-                const progress = (this.audioEngine.totalBeats / this.maxBeats) * 100;
-                document.getElementById('progressFill').style.width = progress + '%';
+                // Calculate actual progress based on sections completed
+                let completedBeats = 0;
+                let totalBeats = 0;
+                
+                // Calculate beats for completed sections
+                for (let i = 0; i < this.audioEngine.currentSection; i++) {
+                    const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                    const baseBars = this.songStructure.barsPerSection[sections[i]] || 8;
+                    const timeSig = this.sectionTimeSignatures[i];
+                    const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                    completedBeats += Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+                }
+                
+                // Add current section progress
+                completedBeats += this.audioEngine.currentBeat;
+                
+                // Calculate total beats for all sections
+                sections.forEach((sec, idx) => {
+                    const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                    const baseBars = this.songStructure.barsPerSection[sec] || 8;
+                    const timeSig = this.sectionTimeSignatures[idx];
+                    const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                    totalBeats += Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+                });
+                
+                const progress = totalBeats > 0 ? (completedBeats / totalBeats) * 100 : 0;
+                document.getElementById('progressFill').style.width = Math.min(progress, 100) + '%';
                 
                 // Update labels
                 const elapsed = this.audioEngine.audioContext.currentTime - this.audioEngine.startTime;
