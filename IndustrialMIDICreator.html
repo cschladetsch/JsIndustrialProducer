@@ -15,6 +15,9 @@
             padding: 10px;
             margin: 0;
             min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scroll-behavior: auto; /* Disable smooth scrolling */
         }
         
         .container {
@@ -24,6 +27,8 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             max-width: 700px;
             width: 100%;
+            position: relative;
+            z-index: 1;
         }
         
         h1 {
@@ -40,6 +45,8 @@
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin-bottom: 15px;
+            position: relative;
+            overflow: visible;
         }
         
         .control-group {
@@ -50,6 +57,8 @@
             background-color: #333;
             border-radius: 4px;
             font-size: 14px;
+            position: relative;
+            overflow: visible;
         }
         
         label {
@@ -70,6 +79,72 @@
             padding: 5px 10px;
             border-radius: 3px;
             cursor: pointer;
+            position: relative;
+            z-index: 1000;
+            min-width: 120px;
+            height: auto;
+            min-height: 35px;
+        }
+        
+        select:focus {
+            outline: 1px solid #4ecdc4;
+            z-index: 1001;
+        }
+        
+        select option {
+            background-color: #444;
+            color: #e0e0e0;
+            padding: 5px;
+        }
+        
+        /* Custom dropdown styles */
+        .custom-select {
+            position: relative;
+            min-width: 120px;
+        }
+        
+        .select-selected {
+            background-color: #444;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .select-selected:hover {
+            border-color: #4ecdc4;
+        }
+        
+        .select-items {
+            position: absolute;
+            background-color: #444;
+            border: 1px solid #555;
+            border-top: none;
+            border-radius: 0 0 3px 3px;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .select-items div {
+            color: #e0e0e0;
+            padding: 8px 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .select-items div:hover {
+            background-color: #555;
+            color: #4ecdc4;
+        }
+        
+        .select-hide {
+            display: none;
         }
         
         .value {
@@ -310,9 +385,20 @@
             animation: pulse 1s infinite;
         }
         
+        .paused {
+            color: #d69e2e !important;
+            animation: pausePulse 2s infinite;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes pausePulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
             100% { opacity: 1; }
         }
         
@@ -520,6 +606,58 @@
         .lyrics-display::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        
+        /* Vocal output styles */
+        .vocal-output-container {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .vocal-output-container h3 {
+            color: #ff6b6b;
+            margin-bottom: 8px;
+            margin-top: 0;
+            font-size: 14px;
+        }
+        
+        .vocal-output-display {
+            background-color: #0a0a0a;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #333;
+            gap: 10px;
+        }
+        
+        .section-state {
+            color: #ff6b6b;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+            margin-bottom: 5px;
+        }
+        
+        .vocal-text {
+            color: #4ecdc4;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: vocalPulse 2s ease-in-out;
+        }
+        
+        @keyframes vocalPulse {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.8; transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -582,6 +720,20 @@
                 <span class="value" id="songLengthValue">1.0x (~5 min)</span>
             </div>
             
+            <div class="control-group">
+                <label for="vocals">Vocals:</label>
+                <div class="custom-select">
+                    <div class="select-selected" id="vocalDisplay">Off</div>
+                    <div class="select-items select-hide" id="vocalOptions">
+                        <div data-value="off">Off</div>
+                        <div data-value="robotic">Robotic</div>
+                        <div data-value="whisper">Whisper</div>
+                        <div data-value="distorted">Distorted</div>
+                    </div>
+                </div>
+                <input type="hidden" id="vocals" value="off">
+            </div>
+            
         </div>
         
         <div class="button-group">
@@ -639,6 +791,14 @@
                 <button class="lyrics-btn" id="exportLyricsBtn">Export .txt</button>
             </div>
         </div>
+        
+        <div class="vocal-output-container" id="vocalOutputContainer" style="display: none;">
+            <h3>Vocal Output</h3>
+            <div class="vocal-output-display" id="vocalOutputDisplay">
+                <div class="section-state" id="sectionState">INTRO</div>
+                <span class="vocal-text" id="vocalText">...</span>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -663,6 +823,9 @@
         let totalSongDuration = 0;
         let generatedLyrics = {};
         let currentLyrics = [];
+        let speechSynth = window.speechSynthesis;
+        let currentVocalType = 'off';
+        let vocalQueue = [];
         
         // Seeded random number generator
         function seededRandom(seed) {
@@ -878,6 +1041,9 @@
             return element;
         }
         
+        // Make createSectionElement globally accessible for continuous mode
+        window.createSectionElement = createSectionElement;
+        
         function loadPreset(preset) {
             structureEditor.innerHTML = '<div class="drop-indicator" id="dropIndicator"></div>';
             dropIndicator = document.getElementById('dropIndicator');
@@ -907,6 +1073,9 @@
             }
         }
         
+        // Make updateStructureInfo globally accessible
+        window.updateStructureInfo = updateStructureInfo;
+        
         function updateSongSections() {
             const sections = structureEditor.querySelectorAll('.section-block');
             songSections = Array.from(sections).map(section => section.dataset.section);
@@ -914,6 +1083,32 @@
         
         // Initialize with standard preset
         loadPreset('standard');
+        
+        // Custom dropdown functionality
+        const vocalDisplay = document.getElementById('vocalDisplay');
+        const vocalOptions = document.getElementById('vocalOptions');
+        const vocalInput = document.getElementById('vocals');
+        
+        vocalDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            vocalOptions.classList.toggle('select-hide');
+        });
+        
+        vocalOptions.querySelectorAll('div').forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const value = option.getAttribute('data-value');
+                const text = option.textContent;
+                vocalInput.value = value;
+                vocalDisplay.textContent = text;
+                vocalOptions.classList.add('select-hide');
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            vocalOptions.classList.add('select-hide');
+        });
         
         // Industrial/Tool-style lyrics generation
         const lyricsThemes = {
@@ -1042,12 +1237,145 @@
                 const lyricIndex = Math.floor((currentBeat / 4) % currentSectionLyrics.length);
                 if (currentSectionLyrics[lyricIndex]) {
                     currentSectionLyrics[lyricIndex].element.classList.add('current');
-                    currentSectionLyrics[lyricIndex].element.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center' 
-                    });
+                    // Removed automatic scrolling - let user control scroll position
+                    
+                    // Synthesize vocals for current lyric
+                    const vocalType = document.getElementById('vocals').value;
+                    const section = songSections[currentSection];
+                    
+                    // Only vocalize on specific beats for better rhythm
+                    const shouldVocalize = (
+                        (section === 'chorus' && currentBeat % 8 === 0) ||
+                        (section === 'verse' && currentBeat % 16 === 0) ||
+                        (section === 'bridge' && currentBeat % 12 === 0) ||
+                        (section === 'breakdown' && currentBeat % 4 === 0)
+                    );
+                    
+                    if (vocalType !== 'off' && shouldVocalize) {
+                        // Only vocalize short phrases
+                        const words = currentSectionLyrics[lyricIndex].text.split(' ');
+                        const phrase = words.slice(0, Math.min(3, words.length)).join(' ');
+                        synthesizeVocal(phrase, vocalType);
+                    }
                 }
             }
+        }
+        
+        // Synthesize robotic vocals using Web Audio
+        function synthesizeVocal(text, vocalType) {
+            if (!audioContext || !masterGain) return;
+            
+            // Update vocal text
+            const vocalText = document.getElementById('vocalText');
+            vocalText.textContent = text;
+            
+            // Re-trigger animation
+            vocalText.style.animation = 'none';
+            setTimeout(() => {
+                vocalText.style.animation = 'vocalPulse 2s ease-in-out';
+            }, 10);
+            
+            // Simple phoneme mapping for robotic speech
+            const phonemes = text.toLowerCase().split('').map(char => {
+                // Map characters to frequency patterns
+                const vowels = {
+                    'a': [700, 1220, 2600],
+                    'e': [400, 2300, 3000],
+                    'i': [300, 2700, 3300],
+                    'o': [500, 1000, 2500],
+                    'u': [350, 700, 2400],
+                };
+                
+                const consonants = {
+                    's': [4000, 5000, 6000],
+                    'f': [1200, 2400, 3600],
+                    'r': [300, 1000, 1500],
+                    'l': [350, 1600, 2400],
+                    'n': [250, 1700, 2400],
+                    'm': [200, 1200, 2000],
+                    't': [2000, 3000, 4000],
+                    'd': [200, 1700, 2600],
+                    'k': [350, 1800, 2700],
+                    'g': [200, 1300, 2300],
+                    'p': [200, 800, 1800],
+                    'b': [200, 900, 2300],
+                    'h': [500, 1500, 2500],
+                };
+                
+                if (vowels[char]) return { freqs: vowels[char], duration: 0.15, gain: 0.3 };
+                if (consonants[char]) return { freqs: consonants[char], duration: 0.05, gain: 0.2 };
+                if (char === ' ') return { freqs: [0], duration: 0.1, gain: 0 };
+                return { freqs: [400, 1200, 2000], duration: 0.1, gain: 0.15 };
+            });
+            
+            let time = audioContext.currentTime;
+            
+            phonemes.forEach(phoneme => {
+                if (phoneme.gain === 0) {
+                    time += phoneme.duration;
+                    return;
+                }
+                
+                // Create formant oscillators
+                phoneme.freqs.forEach((freq, index) => {
+                    if (freq === 0) return;
+                    
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+                    
+                    // Apply vocal type effects
+                    if (vocalType === 'robotic') {
+                        osc.type = 'square';
+                        filter.type = 'bandpass';
+                        filter.frequency.value = freq;
+                        filter.Q.value = 10;
+                    } else if (vocalType === 'whisper') {
+                        osc.type = 'sawtooth';
+                        filter.type = 'highpass';
+                        filter.frequency.value = 2000;
+                        filter.Q.value = 1;
+                    } else if (vocalType === 'distorted') {
+                        osc.type = 'sawtooth';
+                        filter.type = 'lowpass';
+                        filter.frequency.value = 1000;
+                        filter.Q.value = 5;
+                    }
+                    
+                    osc.frequency.value = freq;
+                    
+                    // Create envelope with reduced volume
+                    const vocalVolume = 0.15; // Lower volume for vocals
+                    gain.gain.setValueAtTime(0, time);
+                    gain.gain.linearRampToValueAtTime(phoneme.gain * vocalVolume / (index + 1), time + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + phoneme.duration);
+                    
+                    // Add some vibrato for more natural sound
+                    const vibrato = audioContext.createOscillator();
+                    const vibratoGain = audioContext.createGain();
+                    vibrato.frequency.value = 5;
+                    vibratoGain.gain.value = freq * 0.02;
+                    
+                    vibrato.connect(vibratoGain);
+                    vibratoGain.connect(osc.frequency);
+                    
+                    // Connect audio graph
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(masterGain);
+                    
+                    // Start and stop
+                    osc.start(time);
+                    vibrato.start(time);
+                    osc.stop(time + phoneme.duration);
+                    vibrato.stop(time + phoneme.duration);
+                    
+                    activeOscillators.push({ osc: osc, stopTime: time + phoneme.duration });
+                    activeOscillators.push({ osc: vibrato, stopTime: time + phoneme.duration });
+                });
+                
+                time += phoneme.duration;
+            });
         }
         
         // Helper function for variable length encoding
@@ -1106,8 +1434,9 @@
                 document.getElementById('status').textContent = 'Song generated successfully! (Seed: ' + Math.floor(currentSeed) + ')';
                 document.getElementById('downloadBtn').style.display = 'inline-block';
                 
-                // Generate lyrics
+                // Generate lyrics and show container
                 generateLyrics();
+                document.getElementById('lyricsContainer').style.display = 'block';
                 
                 return midiData;
             } catch (error) {
@@ -1565,15 +1894,22 @@
             const barWidth = width / bufferLength * 2.5;
             let x = 0;
             
+            // Draw baseline
+            analyserCtx.strokeStyle = '#333';
+            analyserCtx.beginPath();
+            analyserCtx.moveTo(0, height - 1);
+            analyserCtx.lineTo(width, height - 1);
+            analyserCtx.stroke();
+            
             for (let i = 0; i < bufferLength; i++) {
-                const barHeight = (dataArray[i] / 255) * height * 0.8;
+                const barHeight = (dataArray[i] / 255) * (height - 2); // Use full height minus baseline
                 
                 const hue = (i / bufferLength) * 120 + 280; // Purple to red
                 const saturation = 50 + (dataArray[i] / 255) * 50;
                 const lightness = 30 + (dataArray[i] / 255) * 40;
                 
                 analyserCtx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-                analyserCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                analyserCtx.fillRect(x, height - barHeight - 1, barWidth, barHeight);
                 
                 x += barWidth + 1;
                 if (x > width) break;
@@ -1592,6 +1928,17 @@
             
             const sliceWidth = width / bufferLength;
             let x = 0;
+            
+            // Draw center line
+            analyserCtx.strokeStyle = '#333';
+            analyserCtx.beginPath();
+            analyserCtx.moveTo(0, height / 2);
+            analyserCtx.lineTo(width, height / 2);
+            analyserCtx.stroke();
+            
+            // Draw waveform
+            analyserCtx.strokeStyle = '#4ecdc4';
+            analyserCtx.beginPath();
             
             for (let i = 0; i < bufferLength; i++) {
                 const v = dataArray[i] / 128.0;
@@ -1662,6 +2009,12 @@
                 document.getElementById('currentSectionLabel').textContent = 
                     `Section: ${section.toUpperCase()} (${currentSection + 1}/${songSections.length})`;
                 
+                // Update vocal output section state
+                const sectionStateElement = document.getElementById('sectionState');
+                if (sectionStateElement) {
+                    sectionStateElement.textContent = section.toUpperCase();
+                }
+                
                 // Calculate section progress
                 const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
                 const baseBars = barsPerSection[section] || 8;
@@ -1684,6 +2037,10 @@
             // Add playing class to current section
             if (sectionIndex >= 0 && sectionIndex < allSections.length) {
                 allSections[sectionIndex].classList.add('playing');
+                // Prevent any automatic focus that might cause scrolling
+                if (document.activeElement && document.activeElement.blur) {
+                    document.activeElement.blur();
+                }
             }
         }
         
@@ -1711,6 +2068,10 @@
             document.getElementById('status').textContent = isLooping ? 'Continuous music mode...' : 'Playing full song...';
             document.getElementById('status').classList.add('playing');
             document.getElementById('progressBar').style.display = 'block';
+            
+            // Show vocal output container to display section state
+            document.getElementById('vocalOutputContainer').style.display = 'block';
+            document.getElementById('vocalText').textContent = '...';
             
             const tempo = parseInt(document.getElementById('tempo').value);
             const intensity = parseInt(document.getElementById('intensity').value);
@@ -1770,6 +2131,10 @@
             
             // Use setTimeout instead of setInterval for human timing
             const scheduleNextBeat = () => {
+                // Check if paused
+                if (isPaused) {
+                    return;
+                }
                 if (totalBeats >= maxBeats || currentSection >= songSections.length) {
                     if (isLooping) {
                         console.log('Looping to new variation...');
@@ -1792,26 +2157,35 @@
                             const randomStructure = structures[Math.floor(Math.random() * structures.length)];
                             songSections = [...window.structures[randomStructure]];
                             
-                            // Regenerate time signatures for new structure
-                            sectionTimeSignatures = songSections.map((section, index) => {
-                                let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
-                                if ((section === 'verse' || section === 'bridge') && seededRandom(currentSeed + index * 1000) > 0.5) {
-                                    timeSig = getRandomTimeSignature();
-                                }
-                                return timeSig;
+                            // Update the visual structure editor to match
+                            const structureEditor = document.getElementById('structureEditor');
+                            structureEditor.innerHTML = '<div class="drop-indicator" id="dropIndicator"></div>';
+                            songSections.forEach(section => {
+                                const element = window.createSectionElement(section);
+                                structureEditor.appendChild(element);
                             });
-                            
-                            // Recalculate maxBeats for new structure
-                            maxBeats = 0;
-                            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
-                            songSections.forEach((section, index) => {
-                                const baseBars = barsPerSection[section] || 8;
-                                const bars = Math.round(baseBars * songLengthMultiplier);
-                                const timeSig = sectionTimeSignatures[index];
-                                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
-                                maxBeats += bars * beatsPerBar;
-                            });
+                            window.updateStructureInfo();
                         }
+                        
+                        // Always regenerate time signatures for variation
+                        sectionTimeSignatures = songSections.map((section, index) => {
+                            let timeSig = timeSignatures[section] || { numerator: 4, denominator: 4 };
+                            if ((section === 'verse' || section === 'bridge') && seededRandom(currentSeed + index * 1000) > 0.5) {
+                                timeSig = getRandomTimeSignature();
+                            }
+                            return timeSig;
+                        });
+                        
+                        // Recalculate maxBeats for new structure
+                        maxBeats = 0;
+                        const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                        songSections.forEach((section, index) => {
+                            const baseBars = barsPerSection[section] || 8;
+                            const bars = Math.round(baseBars * songLengthMultiplier);
+                            const timeSig = sectionTimeSignatures[index];
+                            const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                            maxBeats += bars * beatsPerBar;
+                        });
                         
                         // Recalculate total song duration
                         totalSongDuration = 0;
@@ -1832,6 +2206,10 @@
                         
                             // Regenerate lyrics for new variation
                             generateLyrics();
+                            
+                            // Update status to show new variation
+                            document.getElementById('status').textContent = 
+                                `Continuous music mode... (New variation)`;
                             
                             // Schedule the next beat after the delay
                             scheduleNextBeat();
@@ -1907,6 +2285,8 @@
                 playbackInterval = setTimeout(scheduleNextBeat, nextBeatTime);
             };
             
+            // Make scheduleNextBeat globally accessible for pause/resume
+            window.currentScheduleNextBeat = scheduleNextBeat;
             scheduleNextBeat();
         }
         
@@ -2130,8 +2510,10 @@
                 playbackInterval = null;
             }
             isPlaying = false;
+            isPaused = false;
             document.getElementById('status').textContent = 'Playback stopped';
             document.getElementById('status').classList.remove('playing');
+            document.getElementById('status').classList.remove('paused');
             document.getElementById('progressBar').style.display = 'none';
             document.getElementById('progressFill').style.width = '0%';
             
@@ -2157,6 +2539,9 @@
             currentLyrics.forEach(lyric => {
                 lyric.element.classList.remove('current');
             });
+            
+            // Hide vocal output
+            document.getElementById('vocalOutputContainer').style.display = 'none';
             
             activeOscillators = [];
         }
@@ -2282,6 +2667,68 @@
                 const rect = analyserCanvas.getBoundingClientRect();
                 analyserCanvas.width = rect.width * (window.devicePixelRatio || 1);
                 analyserCanvas.height = rect.height * (window.devicePixelRatio || 1);
+            }
+        });
+        
+        // Spacebar pause/resume functionality
+        let isPaused = false;
+        let pausedBeat = 0;
+        let pausedSection = 0;
+        let pausedTotalBeats = 0;
+        
+        document.addEventListener('keydown', (e) => {
+            // Check if spacebar is pressed and not in an input field
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault(); // Prevent page scroll
+                
+                if (!isPlaying) {
+                    // Start playback if not playing
+                    if (midiData || isLooping) {
+                        playPreview();
+                    }
+                } else {
+                    // Toggle pause/resume
+                    if (!isPaused) {
+                        // Pause
+                        isPaused = true;
+                        pausedBeat = currentBeat;
+                        pausedSection = currentSection;
+                        pausedTotalBeats = totalBeats;
+                        
+                        // Stop the playback timer
+                        if (playbackInterval) {
+                            clearTimeout(playbackInterval);
+                            playbackInterval = null;
+                        }
+                        
+                        // Update status
+                        document.getElementById('status').textContent = 'Paused';
+                        document.getElementById('status').classList.add('paused');
+                        
+                        // Stop all active sounds
+                        activeOscillators.forEach(item => {
+                            try {
+                                item.osc.stop(audioContext.currentTime);
+                            } catch (e) {}
+                        });
+                        activeOscillators = [];
+                    } else {
+                        // Resume
+                        isPaused = false;
+                        currentBeat = pausedBeat;
+                        currentSection = pausedSection;
+                        totalBeats = pausedTotalBeats;
+                        
+                        // Update status
+                        document.getElementById('status').textContent = isLooping ? 'Continuous music mode...' : 'Playing full song...';
+                        document.getElementById('status').classList.remove('paused');
+                        
+                        // Restart the playback loop
+                        if (window.currentScheduleNextBeat) {
+                            window.currentScheduleNextBeat();
+                        }
+                    }
+                }
             }
         });
     </script>
