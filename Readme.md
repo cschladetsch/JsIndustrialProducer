@@ -1,6 +1,6 @@
 # JsIndustrialProducer - Industrial MIDI Song Creator
 
-**Note:** For the full experience with parameter controls, song generation, and real-time playback, please download and run locally. The application is a standalone HTML file with no external dependencies.
+**Note:** For the full experience with parameter controls, song generation, and real-time playback, please download and run locally. The application is a single self-contained HTML file (index.html) that requires only the accompanying CSS file.
 
 ## Demo Visual
 
@@ -122,16 +122,16 @@ The integrated lyrics generator creates thematic content inspired by industrial/
 2. **Open the application** in your web browser:
    ```bash
    # On Linux:
-   xdg-open IndustrialMIDICreator.html
+   xdg-open index.html
    
    # On macOS:
-   open IndustrialMIDICreator.html
+   open index.html
    
    # On Windows:
-   start IndustrialMIDICreator.html
+   start index.html
    ```
 
-   Or simply double-click the `IndustrialMIDICreator.html` file in your file manager.
+   Or simply double-click the `index.html` file in your file manager.
 
 ### Using the Application
 
@@ -185,7 +185,9 @@ JsIndustrialProducer/
 │   ├── Demo3.gif                # Animated demo  
 │   ├── Song.mid                 # Example MIDI output
 │   └── output.mp3               # Example audio render
-├── IndustrialMIDICreator.html   # Main application (standalone)
+├── index.html                    # Main application (single self-contained file)
+├── css/                          # Styling
+│   └── styles.css               # Application styles
 ├── industrial-midi.js            # Core music generation module
 ├── test-industrial-midi.js       # Comprehensive unit tests
 ├── LICENSE                       # MIT License

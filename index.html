@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christian's Song Creator</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script>
+        // Audio Engine
+        class AudioEngine {
+            constructor() {
+                this.audioContext = null;
+                this.masterGain = null;
+                this.analyser = null;
+                this.activeOscillators = [];
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.currentTempo = 70;
+                this.currentIntensity = 7;
+                this.currentDistortion = 60;
+                this.currentSection = 0;
+                this.currentBeat = 0;
+                this.totalBeats = 0;
+                this.startTime = 0;
+                this.totalSongDuration = 0;
+                this.playbackInterval = null;
+            }
+
+            async initialize() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initializeAnalyzer();
+                    return true;
+                } catch (error) {
+                    console.error('Failed to initialize audio context:', error);
+                    return false;
+                }
+            }
+
+            initializeAnalyzer() {
+                if (!this.audioContext) return;
+                
+                this.analyser = this.audioContext.createAnalyser();
+                this.analyser.fftSize = 2048;
+                this.analyser.smoothingTimeConstant = 0.8;
+                
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.gain.value = 1.0;
+                
+                this.masterGain.connect(this.analyser);
+                this.analyser.connect(this.audioContext.destination);
+            }
+
+            updateTempo(value) {
+                this.currentTempo = value;
+            }
+
+            updateIntensity(value) {
+                this.currentIntensity = value;
+                if (this.masterGain) {
+                    const targetGain = 0.3 + (this.currentIntensity - 5) * 0.05;
+                    this.masterGain.gain.exponentialRampToValueAtTime(
+                        Math.max(0.01, targetGain), 
+                        this.audioContext.currentTime + 0.1
+                    );
+                }
+            }
+
+            updateDistortion(value) {
+                this.currentDistortion = value;
+            }
+
+            playSection(section, beat, intensity, distortion, sectionIndex, seed) {
+                if (!this.audioContext || !this.masterGain) return;
+                
+                const now = this.audioContext.currentTime;
+                const beatDuration = 60 / this.currentTempo;
+                
+                // Determine musical properties
+                const isKick = beat % 4 === 0;
+                const isSnare = beat % 8 === 4;
+                const isHihat = beat % 2 === 1;
+                
+                // Play drums
+                if (section !== 'intro' || beat > 16) {
+                    if (isKick) this.playKick(now, intensity);
+                    if (isSnare) this.playSnare(now, intensity);
+                    if (isHihat && intensity > 5) this.playHihat(now, intensity);
+                }
+                
+                // Play bass
+                const bassPattern = this.getBassPattern(section, intensity, seed + sectionIndex);
+                const currentBassNote = bassPattern[beat % bassPattern.length];
+                this.playBass(now, currentBassNote.pitch, currentBassNote.velocity / 127, 
+                    currentBassNote.duration * beatDuration, distortion);
+                
+                // Play lead
+                if ((section === 'chorus' || section === 'bridge') && beat % 16 === 0) {
+                    const leadPattern = this.getLeadPattern(section, intensity, seed + sectionIndex);
+                    const leadNote = leadPattern[0];
+                    this.playLead(now, leadNote.pitch, leadNote.velocity / 127, 
+                        leadNote.duration * beatDuration, distortion);
+                }
+                
+                // Atmospheric effects
+                if (section === 'breakdown' && beat % 32 === 0) {
+                    this.playAtmosphere(now, intensity, seed);
+                }
+            }
+
+            playKick(time, intensity) {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(60, time);
+                osc.frequency.exponentialRampToValueAtTime(30, time + 0.1);
+                
+                const volume = 0.5 + (intensity / 20);
+                gain.gain.setValueAtTime(volume, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + 0.2);
+                
+                this.activeOscillators.push({ osc, stopTime: time + 0.2 });
+            }
+
+            playSnare(time, intensity) {
+                const noise = this.audioContext.createBufferSource();
+                const buffer = this.audioContext.createBuffer(1, 4410, this.audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < 4410; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                noise.buffer = buffer;
+                
+                const noiseFilter = this.audioContext.createBiquadFilter();
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 3000;
+                
+                const noiseGain = this.audioContext.createGain();
+                const volume = 0.2 + (intensity / 30);
+                noiseGain.gain.setValueAtTime(volume, time);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(this.masterGain);
+                
+                noise.start(time);
+            }
+
+            playHihat(time, intensity) {
+                const noise = this.audioContext.createBufferSource();
+                const buffer = this.audioContext.createBuffer(1, 2205, this.audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < 2205; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                noise.buffer = buffer;
+                
+                const filter = this.audioContext.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 8000;
+                
+                const gain = this.audioContext.createGain();
+                const volume = 0.1 + (intensity / 50);
+                gain.gain.setValueAtTime(volume, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                noise.start(time);
+            }
+
+            playBass(time, pitch, velocity, duration, distortion) {
+                const frequency = 440 * Math.pow(2, (pitch - 69) / 12);
+                
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                
+                osc.type = distortion > 50 ? 'sawtooth' : 'sine';
+                osc.frequency.setValueAtTime(frequency, time);
+                
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(200 + distortion * 20, time);
+                filter.Q.setValueAtTime(5 + distortion / 10, time);
+                
+                const volume = velocity * 0.3;
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(volume, time + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                
+                if (distortion > 70) {
+                    const waveshaper = this.audioContext.createWaveShaper();
+                    waveshaper.curve = this.makeDistortionCurve(distortion);
+                    waveshaper.oversample = '4x';
+                    
+                    osc.connect(waveshaper);
+                    waveshaper.connect(filter);
+                } else {
+                    osc.connect(filter);
+                }
+                
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + duration);
+                
+                this.activeOscillators.push({ osc, stopTime: time + duration });
+            }
+
+            playLead(time, pitch, velocity, duration, distortion) {
+                const frequency = 440 * Math.pow(2, (pitch - 69) / 12);
+                
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                const delay = this.audioContext.createDelay();
+                const feedback = this.audioContext.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(frequency, time);
+                
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(frequency * 2, time);
+                filter.Q.setValueAtTime(2, time);
+                
+                delay.delayTime.value = 0.2;
+                feedback.gain.value = 0.3;
+                
+                const volume = velocity * 0.2;
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(volume, time + 0.05);
+                gain.gain.setValueAtTime(volume, time + duration - 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(delay);
+                delay.connect(feedback);
+                feedback.connect(delay);
+                gain.connect(this.masterGain);
+                delay.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + duration);
+                
+                this.activeOscillators.push({ osc, stopTime: time + duration });
+            }
+
+            playAtmosphere(time, intensity, seed) {
+                const duration = 4;
+                const osc1 = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                
+                const baseFreq = 80 + (seed % 40);
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(baseFreq, time);
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(baseFreq * 1.01, time);
+                
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, time);
+                filter.frequency.exponentialRampToValueAtTime(100, time + duration);
+                
+                const volume = 0.1 + (intensity / 100);
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(volume, time + 1);
+                gain.gain.setValueAtTime(volume, time + duration - 1);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc1.start(time);
+                osc2.start(time);
+                osc1.stop(time + duration);
+                osc2.stop(time + duration);
+                
+                this.activeOscillators.push({ osc: osc1, stopTime: time + duration });
+                this.activeOscillators.push({ osc: osc2, stopTime: time + duration });
+            }
+
+            makeDistortionCurve(amount) {
+                const samples = 44100;
+                const curve = new Float32Array(samples);
+                const deg = Math.PI / 180;
+                
+                for (let i = 0; i < samples; i++) {
+                    const x = (i * 2) / samples - 1;
+                    curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
+                }
+                
+                return curve;
+            }
+
+            getBassPattern(section, intensity, seed = 0) {
+                const patterns = {
+                    intro: [
+                        { pitch: 36, velocity: 60, duration: 1 },
+                        { pitch: 36, velocity: 50, duration: 0.5 },
+                        { pitch: 41, velocity: 55, duration: 0.5 }
+                    ],
+                    verse: [
+                        { pitch: 36, velocity: 70, duration: 0.5 },
+                        { pitch: 36, velocity: 60, duration: 0.5 },
+                        { pitch: 41, velocity: 65, duration: 0.5 }
+                    ],
+                    chorus: [
+                        { pitch: 36, velocity: 80, duration: 0.25 },
+                        { pitch: 36, velocity: 75, duration: 0.25 },
+                        { pitch: 48, velocity: 80, duration: 0.5 }
+                    ]
+                };
+                
+                return patterns[section] || patterns.verse;
+            }
+
+            getLeadPattern(section, intensity, seed = 0) {
+                const patterns = {
+                    intro: [
+                        { pitch: 60, velocity: 50, duration: 2 }
+                    ],
+                    verse: [
+                        { pitch: 63, velocity: 60, duration: 1 },
+                        { pitch: 65, velocity: 55, duration: 1 }
+                    ],
+                    chorus: [
+                        { pitch: 67, velocity: 80, duration: 0.5 },
+                        { pitch: 70, velocity: 75, duration: 0.5 },
+                        { pitch: 72, velocity: 80, duration: 1 }
+                    ]
+                };
+                
+                return patterns[section] || patterns.verse;
+            }
+
+            stop() {
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.currentSection = 0;
+                this.currentBeat = 0;
+                this.totalBeats = 0;
+                
+                this.cleanupOscillators();
+                
+                if (this.playbackInterval) {
+                    clearTimeout(this.playbackInterval);
+                    this.playbackInterval = null;
+                }
+            }
+
+            cleanupOscillators() {
+                const now = this.audioContext ? this.audioContext.currentTime : 0;
+                this.activeOscillators = this.activeOscillators.filter(item => {
+                    if (item.stopTime <= now + 0.1) {
+                        try {
+                            item.osc.stop(now);
+                            item.osc.disconnect();
+                        } catch (e) {}
+                        return false;
+                    }
+                    return true;
+                });
+            }
+        }
+
+        // Song Structure
+        class SongStructure {
+            constructor() {
+                this.sections = [];
+                this.structures = {
+                    standard: ['intro', 'intro', 'verse', 'verse', 'instrumental', 'chorus', 'chorus', 
+                              'verse', 'instrumental', 'chorus', 'chorus', 'bridge', 'chorus', 'chorus', 'outro'],
+                    simple: ['intro', 'verse', 'verse', 'chorus', 'chorus', 'verse', 'chorus', 'outro'],
+                    extended: ['intro', 'intro', 'verse', 'pre-chorus', 'chorus', 'instrumental',
+                              'verse', 'pre-chorus', 'chorus', 'chorus', 'bridge', 'breakdown',
+                              'chorus', 'chorus', 'outro', 'outro'],
+                    industrial: ['intro', 'breakdown', 'verse', 'breakdown', 'chorus', 'instrumental',
+                                'breakdown', 'verse', 'breakdown', 'chorus', 'bridge', 'breakdown', 'outro']
+                };
+                
+                this.timeSignatures = {
+                    intro: { numerator: 4, denominator: 4 },
+                    verse: { numerator: 4, denominator: 4 },
+                    'pre-chorus': { numerator: 4, denominator: 4 },
+                    chorus: { numerator: 4, denominator: 4 },
+                    bridge: { numerator: 4, denominator: 4 },
+                    breakdown: { numerator: 7, denominator: 8 },
+                    instrumental: { numerator: 4, denominator: 4 },
+                    outro: { numerator: 4, denominator: 4 }
+                };
+                
+                this.barsPerSection = {
+                    intro: 8,
+                    verse: 16,
+                    'pre-chorus': 8,
+                    chorus: 16,
+                    bridge: 12,
+                    breakdown: 8,
+                    instrumental: 8,
+                    outro: 8
+                };
+                
+                this.draggedElement = null;
+                this.dropIndicator = null;
+            }
+
+            initialize() {
+                this.structureEditor = document.getElementById('structureEditor');
+                this.dropIndicator = document.getElementById('dropIndicator');
+                
+                // Initialize drag and drop for palette sections
+                document.querySelectorAll('.draggable-section').forEach(element => {
+                    element.addEventListener('dragstart', this.handleDragStart.bind(this));
+                    element.addEventListener('dragend', this.handleDragEnd.bind(this));
+                });
+                
+                // Setup drop zone
+                this.structureEditor.addEventListener('dragover', this.handleDragOver.bind(this));
+                this.structureEditor.addEventListener('drop', this.handleDrop.bind(this));
+                
+                // Setup preset buttons
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const preset = e.target.dataset.preset;
+                        this.loadPreset(preset);
+                    });
+                });
+                
+                // Load default structure
+                this.loadPreset('standard');
+            }
+
+            handleDragStart(e) {
+                this.draggedElement = e.target;
+                e.target.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData('text/plain', e.target.dataset.section);
+            }
+
+            handleDragEnd(e) {
+                e.target.classList.remove('dragging');
+                this.dropIndicator.style.display = 'none';
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                
+                const afterElement = this.getDragAfterElement(e.clientX);
+                if (afterElement == null) {
+                    this.dropIndicator.style.left = (this.structureEditor.offsetWidth - 2) + 'px';
+                } else {
+                    this.dropIndicator.style.left = (afterElement.offsetLeft - 4) + 'px';
+                }
+                this.dropIndicator.style.display = 'block';
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                const section = e.dataTransfer.getData('text/plain');
+                const afterElement = this.getDragAfterElement(e.clientX);
+                
+                this.addSection(section, afterElement);
+                this.dropIndicator.style.display = 'none';
+                this.updateInfo();
+            }
+
+            getDragAfterElement(x) {
+                const draggableElements = [...this.structureEditor.querySelectorAll('.section-block:not(.dragging)')];
+                
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = x - box.left - box.width / 2;
+                    
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            addSection(section, afterElement) {
+                const newSection = document.createElement('div');
+                newSection.className = `section-block ${section}`;
+                newSection.textContent = section.toUpperCase();
+                newSection.draggable = true;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => {
+                    newSection.remove();
+                    this.updateSections();
+                    this.updateInfo();
+                };
+                
+                newSection.appendChild(removeBtn);
+                
+                if (afterElement) {
+                    afterElement.insertAdjacentElement('afterend', newSection);
+                } else {
+                    const indicator = this.structureEditor.querySelector('.drop-indicator');
+                    if (indicator) {
+                        this.structureEditor.insertBefore(newSection, indicator);
+                    } else {
+                        this.structureEditor.appendChild(newSection);
+                    }
+                }
+                
+                newSection.addEventListener('dragstart', this.handleDragStart.bind(this));
+                newSection.addEventListener('dragend', this.handleDragEnd.bind(this));
+                
+                this.updateSections();
+            }
+
+            loadPreset(preset) {
+                this.structureEditor.innerHTML = '<div class="drop-indicator" id="dropIndicator"></div>';
+                this.dropIndicator = document.getElementById('dropIndicator');
+                
+                const structure = this.structures[preset];
+                structure.forEach(section => {
+                    this.addSection(section);
+                });
+                
+                this.updateInfo();
+            }
+
+            updateSections() {
+                this.sections = Array.from(this.structureEditor.querySelectorAll('.section-block'))
+                    .map(el => el.textContent.toLowerCase().replace('×', '').trim());
+            }
+
+            updateInfo() {
+                this.updateSections();
+                const totalBars = this.sections.reduce((sum, section) => 
+                    sum + (this.barsPerSection[section] || 8), 0);
+                const approxMinutes = Math.round((totalBars * 4 * 60) / (70 * 60));
+                
+                document.getElementById('structureInfo').textContent = 
+                    `${this.sections.length} sections, ~${totalBars} bars, ~${approxMinutes} minutes`;
+            }
+
+            getSections() {
+                this.updateSections();
+                return this.sections;
+            }
+
+            getRandomTimeSignature() {
+                const signatures = [
+                    { numerator: 5, denominator: 4 },
+                    { numerator: 7, denominator: 8 },
+                    { numerator: 9, denominator: 8 },
+                    { numerator: 6, denominator: 8 }
+                ];
+                return signatures[Math.floor(Math.random() * signatures.length)];
+            }
+        }
+
+        // Visualizer
+        class Visualizer {
+            constructor(audioEngine) {
+                this.audioEngine = audioEngine;
+                this.analyserCanvas = null;
+                this.analyserCtx = null;
+                this.analyserMode = 'bars';
+                this.animationId = null;
+            }
+
+            initialize() {
+                this.analyserCanvas = document.getElementById('analyzerCanvas');
+                if (!this.analyserCanvas) {
+                    console.warn('Analyzer canvas not found - skipping visualizer initialization');
+                    return;
+                }
+                this.analyserCtx = this.analyserCanvas.getContext('2d');
+                
+                // Setup mode buttons
+                const analyzerButtons = document.querySelectorAll('.analyzer-btn');
+                if (analyzerButtons.length > 0) {
+                    analyzerButtons.forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            document.querySelectorAll('.analyzer-btn').forEach(b => b.classList.remove('active'));
+                            e.target.classList.add('active');
+                            this.analyserMode = e.target.dataset.mode;
+                        });
+                    });
+                }
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    if (this.analyserCanvas && document.getElementById('analyzerContainer').style.display !== 'none') {
+                        const rect = this.analyserCanvas.getBoundingClientRect();
+                        this.analyserCanvas.width = rect.width * (window.devicePixelRatio || 1);
+                        this.analyserCanvas.height = rect.height * (window.devicePixelRatio || 1);
+                    }
+                });
+            }
+
+            startAnimation() {
+                if (this.animationId) return;
+                
+                // Set canvas size if needed
+                if (this.analyserCanvas) {
+                    const rect = this.analyserCanvas.getBoundingClientRect();
+                    this.analyserCanvas.width = rect.width * window.devicePixelRatio || 600;
+                    this.analyserCanvas.height = rect.height * window.devicePixelRatio || 120;
+                    this.analyserCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+                }
+                
+                this.draw();
+            }
+
+            stopAnimation() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+
+            draw() {
+                this.animationId = requestAnimationFrame(() => this.draw());
+                
+                if (!this.audioEngine.analyser || !this.analyserCtx) return;
+                
+                const width = this.analyserCanvas.width / (window.devicePixelRatio || 1);
+                const height = this.analyserCanvas.height / (window.devicePixelRatio || 1);
+                
+                if (width <= 0 || height <= 0) {
+                    const rect = this.analyserCanvas.getBoundingClientRect();
+                    this.analyserCanvas.width = rect.width * (window.devicePixelRatio || 1) || 600;
+                    this.analyserCanvas.height = rect.height * (window.devicePixelRatio || 1) || 120;
+                    return;
+                }
+                
+                this.analyserCtx.fillStyle = '#0a0a0a';
+                this.analyserCtx.fillRect(0, 0, this.analyserCanvas.width, this.analyserCanvas.height);
+                
+                if (this.analyserMode === 'bars') {
+                    this.drawBars(width, height);
+                } else if (this.analyserMode === 'wave') {
+                    this.drawWaveform(width, height);
+                } else if (this.analyserMode === 'circle') {
+                    this.drawCircle(width, height);
+                }
+            }
+
+            drawBars(width, height) {
+                const bufferLength = this.audioEngine.analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                this.audioEngine.analyser.getByteFrequencyData(dataArray);
+                
+                const barWidth = width / bufferLength * 2.5;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * height;
+                    
+                    const r = barHeight + 25 * (i / bufferLength);
+                    const g = 250 * (i / bufferLength);
+                    const b = 50;
+                    
+                    this.analyserCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    this.analyserCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                    
+                    x += barWidth + 1;
+                    if (x > width) break;
+                }
+            }
+
+            drawWaveform(width, height) {
+                const bufferLength = this.audioEngine.analyser.fftSize;
+                const dataArray = new Uint8Array(bufferLength);
+                this.audioEngine.analyser.getByteTimeDomainData(dataArray);
+                
+                this.analyserCtx.lineWidth = 2;
+                this.analyserCtx.strokeStyle = '#4ecdc4';
+                this.analyserCtx.beginPath();
+                
+                const sliceWidth = width / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * height / 2;
+                    
+                    if (i === 0) {
+                        this.analyserCtx.moveTo(x, y);
+                    } else {
+                        this.analyserCtx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                this.analyserCtx.stroke();
+            }
+
+            drawCircle(width, height) {
+                const bufferLength = this.audioEngine.analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                this.audioEngine.analyser.getByteFrequencyData(dataArray);
+                
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = Math.min(width, height) / 3;
+                
+                this.analyserCtx.beginPath();
+                
+                for (let i = 0; i < 360; i += 2) {
+                    const index = Math.floor((i / 360) * bufferLength);
+                    const value = dataArray[index] / 255;
+                    const r = radius + value * 30;
+                    
+                    const angle = (i * Math.PI) / 180;
+                    const x = centerX + Math.cos(angle) * r;
+                    const y = centerY + Math.sin(angle) * r;
+                    
+                    if (i === 0) {
+                        this.analyserCtx.moveTo(x, y);
+                    } else {
+                        this.analyserCtx.lineTo(x, y);
+                    }
+                }
+                
+                this.analyserCtx.closePath();
+                this.analyserCtx.strokeStyle = '#ff6b6b';
+                this.analyserCtx.lineWidth = 2;
+                this.analyserCtx.stroke();
+            }
+
+            clear() {
+                if (this.analyserCtx && this.analyserCanvas) {
+                    this.analyserCtx.fillStyle = '#0a0a0a';
+                    this.analyserCtx.fillRect(0, 0, this.analyserCanvas.width, this.analyserCanvas.height);
+                }
+            }
+        }
+
+        // Vocal Synthesizer
+        class VocalSynthesizer {
+            constructor(audioEngine) {
+                this.audioEngine = audioEngine;
+                this.currentVocalType = 'off';
+                
+                // Phoneme mappings
+                this.vowels = {
+                    'a': [700, 1220, 2600],
+                    'e': [400, 2300, 3000],
+                    'i': [300, 2700, 3300],
+                    'o': [500, 1000, 2500],
+                    'u': [350, 700, 2400],
+                };
+                
+                this.consonants = {
+                    's': [4000, 5000, 6000],
+                    'f': [1200, 2400, 3600],
+                    'r': [300, 1000, 1500],
+                    'l': [350, 1600, 2400],
+                    'n': [250, 1700, 2400],
+                    'm': [200, 1200, 2000],
+                    't': [2000, 3000, 4000],
+                    'd': [200, 1700, 2600],
+                    'k': [350, 1800, 2700],
+                    'g': [200, 1300, 2300],
+                    'p': [200, 800, 1800],
+                    'b': [200, 900, 2300],
+                    'h': [500, 1500, 2500],
+                };
+            }
+
+            synthesize(text, vocalType) {
+                if (!this.audioEngine.audioContext || !this.audioEngine.masterGain) return;
+                
+                // Update vocal text display
+                const vocalText = document.getElementById('vocalText');
+                vocalText.textContent = text;
+                
+                // Re-trigger animation
+                vocalText.style.animation = 'none';
+                setTimeout(() => {
+                    vocalText.style.animation = 'vocalPulse 2s ease-in-out';
+                }, 10);
+                
+                // Create phonemes
+                const phonemes = text.toLowerCase().split('').map(char => {
+                    if (this.vowels[char]) return { freqs: this.vowels[char], duration: 0.15, gain: 0.3 };
+                    if (this.consonants[char]) return { freqs: this.consonants[char], duration: 0.05, gain: 0.2 };
+                    if (char === ' ') return { freqs: [0], duration: 0.1, gain: 0 };
+                    return { freqs: [400, 1200, 2000], duration: 0.1, gain: 0.15 };
+                });
+                
+                let time = this.audioEngine.audioContext.currentTime;
+                
+                phonemes.forEach(phoneme => {
+                    if (phoneme.gain === 0) {
+                        time += phoneme.duration;
+                        return;
+                    }
+                    
+                    // Create formant oscillators
+                    phoneme.freqs.forEach((freq, index) => {
+                        if (freq === 0) return;
+                        
+                        const osc = this.audioEngine.audioContext.createOscillator();
+                        const gain = this.audioEngine.audioContext.createGain();
+                        const filter = this.audioEngine.audioContext.createBiquadFilter();
+                        
+                        // Apply vocal type effects
+                        this.applyVocalEffect(osc, filter, vocalType, freq);
+                        
+                        osc.frequency.value = freq;
+                        
+                        // Create envelope with reduced volume
+                        const vocalVolume = 0.15;
+                        gain.gain.setValueAtTime(0, time);
+                        gain.gain.linearRampToValueAtTime(phoneme.gain * vocalVolume / (index + 1), time + 0.01);
+                        gain.gain.exponentialRampToValueAtTime(0.01, time + phoneme.duration);
+                        
+                        // Add vibrato
+                        const vibrato = this.audioEngine.audioContext.createOscillator();
+                        const vibratoGain = this.audioEngine.audioContext.createGain();
+                        vibrato.frequency.value = 5;
+                        vibratoGain.gain.value = freq * 0.02;
+                        
+                        vibrato.connect(vibratoGain);
+                        vibratoGain.connect(osc.frequency);
+                        
+                        // Connect audio graph
+                        osc.connect(filter);
+                        filter.connect(gain);
+                        gain.connect(this.audioEngine.masterGain);
+                        
+                        // Start and stop
+                        osc.start(time);
+                        vibrato.start(time);
+                        osc.stop(time + phoneme.duration);
+                        vibrato.stop(time + phoneme.duration);
+                        
+                        this.audioEngine.activeOscillators.push({ osc: osc, stopTime: time + phoneme.duration });
+                        this.audioEngine.activeOscillators.push({ osc: vibrato, stopTime: time + phoneme.duration });
+                    });
+                    
+                    time += phoneme.duration;
+                });
+            }
+
+            applyVocalEffect(osc, filter, vocalType, freq) {
+                if (vocalType === 'robotic') {
+                    osc.type = 'square';
+                    filter.type = 'bandpass';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 10;
+                } else if (vocalType === 'whisper') {
+                    osc.type = 'sawtooth';
+                    filter.type = 'highpass';
+                    filter.frequency.value = 2000;
+                    filter.Q.value = 1;
+                } else if (vocalType === 'distorted') {
+                    osc.type = 'sawtooth';
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 1000;
+                    filter.Q.value = 5;
+                }
+            }
+
+            shouldVocalize(section, beat) {
+                return (
+                    (section === 'chorus' && beat % 8 === 0) ||
+                    (section === 'verse' && beat % 16 === 0) ||
+                    (section === 'bridge' && beat % 12 === 0) ||
+                    (section === 'breakdown' && beat % 4 === 0)
+                );
+            }
+        }
+
+        // Lyrics Generator
+        class LyricsGenerator {
+            constructor() {
+                this.generatedLyrics = {};
+                this.currentLyrics = [];
+                
+                this.themes = {
+                    existential: [
+                        'fractured', 'dissolve', 'beneath', 'hollow', 'spiral', 'descend',
+                        'machine', 'synthetic', 'digital', 'static', 'void', 'echo',
+                        'rust', 'corrode', 'decay', 'fragment', 'shatter', 'erode'
+                    ],
+                    emotional: [
+                        'numb', 'disconnect', 'isolate', 'suffocate', 'drown', 'bleed',
+                        'scar', 'wound', 'break', 'tear', 'rip', 'crush'
+                    ],
+                    abstract: [
+                        'time', 'space', 'dimension', 'reality', 'existence', 'consciousness',
+                        'illusion', 'perception', 'distortion', 'reflection', 'shadow', 'light'
+                    ],
+                    industrial: [
+                        'steel', 'wire', 'circuit', 'pulse', 'frequency', 'signal',
+                        'transmission', 'feedback', 'overload', 'system', 'malfunction', 'glitch'
+                    ]
+                };
+                
+                this.patterns = {
+                    verse: [
+                        '{abstract} {emotional} through {industrial}',
+                        '{existential} in the {abstract}',
+                        'I {emotional} as {industrial} {existential}',
+                        'The {abstract} {existential}, {emotional} within',
+                        '{industrial} {emotional} my {abstract}'
+                    ],
+                    chorus: [
+                        '{existential}! {existential}!',
+                        'We {emotional} in {industrial}',
+                        '{abstract} {existential} away',
+                        'Breaking down, {emotional}',
+                        '{industrial} {abstract} {emotional}'
+                    ],
+                    bridge: [
+                        'Is this {abstract}?',
+                        'Where {industrial} meets {emotional}',
+                        '{existential} becomes {abstract}',
+                        'Lost in {industrial} {abstract}'
+                    ]
+                };
+            }
+
+            generate(sections, seed) {
+                this.generatedLyrics = {};
+                this.currentLyrics = [];
+                
+                sections.forEach((section, index) => {
+                    if (section === 'intro' || section === 'outro' || section === 'instrumental') {
+                        this.generatedLyrics[`${section}_${index}`] = ['[Instrumental]'];
+                    } else if (section === 'breakdown') {
+                        const word = this.randomChoice(this.themes.existential, seed + index * 1000);
+                        this.generatedLyrics[`${section}_${index}`] = [
+                            word.toUpperCase(),
+                            word.toUpperCase(),
+                            '...',
+                            word.toUpperCase()
+                        ];
+                    } else {
+                        const linesCount = section === 'verse' ? 4 : section === 'chorus' ? 3 : 2;
+                        const lines = [];
+                        
+                        for (let i = 0; i < linesCount; i++) {
+                            const pattern = this.randomChoice(
+                                this.patterns[section] || this.patterns.verse,
+                                seed + index * 1000 + i * 100
+                            );
+                            
+                            let line = pattern;
+                            line = line.replace(/{abstract}/g, () => 
+                                this.randomChoice(this.themes.abstract, seed + Math.random() * 10000)
+                            );
+                            line = line.replace(/{emotional}/g, () => 
+                                this.randomChoice(this.themes.emotional, seed + Math.random() * 10000)
+                            );
+                            line = line.replace(/{existential}/g, () => 
+                                this.randomChoice(this.themes.existential, seed + Math.random() * 10000)
+                            );
+                            line = line.replace(/{industrial}/g, () => 
+                                this.randomChoice(this.themes.industrial, seed + Math.random() * 10000)
+                            );
+                            
+                            lines.push(line.charAt(0).toUpperCase() + line.slice(1));
+                        }
+                        
+                        this.generatedLyrics[`${section}_${index}`] = lines;
+                    }
+                });
+                
+                return this.generatedLyrics;
+            }
+
+            display(lyrics) {
+                const lyricsDisplay = document.getElementById('lyricsDisplay');
+                lyricsDisplay.innerHTML = '';
+                this.currentLyrics = [];
+                
+                Object.entries(lyrics).forEach(([key, lines]) => {
+                    const [section, index] = key.split('_');
+                    
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'lyrics-section';
+                    
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'lyrics-section-title';
+                    titleDiv.textContent = `[${section.toUpperCase()}]`;
+                    sectionDiv.appendChild(titleDiv);
+                    
+                    lines.forEach(line => {
+                        const lineDiv = document.createElement('div');
+                        lineDiv.className = 'lyrics-line';
+                        lineDiv.textContent = line;
+                        sectionDiv.appendChild(lineDiv);
+                        this.currentLyrics.push({ 
+                            element: lineDiv, 
+                            section: parseInt(index), 
+                            text: line 
+                        });
+                    });
+                    
+                    lyricsDisplay.appendChild(sectionDiv);
+                });
+            }
+
+            updateCurrentLyric(currentSection, currentBeat) {
+                if (this.currentLyrics.length === 0) return;
+                
+                this.currentLyrics.forEach(lyric => {
+                    lyric.element.classList.remove('current');
+                });
+                
+                const currentSectionLyrics = this.currentLyrics.filter(l => l.section === currentSection);
+                if (currentSectionLyrics.length > 0) {
+                    const lyricIndex = Math.floor((currentBeat / 4) % currentSectionLyrics.length);
+                    if (currentSectionLyrics[lyricIndex]) {
+                        currentSectionLyrics[lyricIndex].element.classList.add('current');
+                    }
+                }
+            }
+
+            getCurrentLyricText(currentSection, currentBeat) {
+                const currentSectionLyrics = this.currentLyrics.filter(l => l.section === currentSection);
+                if (currentSectionLyrics.length > 0) {
+                    const lyricIndex = Math.floor((currentBeat / 4) % currentSectionLyrics.length);
+                    if (currentSectionLyrics[lyricIndex]) {
+                        return currentSectionLyrics[lyricIndex].text;
+                    }
+                }
+                return null;
+            }
+
+            clearCurrentLyric() {
+                this.currentLyrics.forEach(lyric => {
+                    lyric.element.classList.remove('current');
+                });
+            }
+
+            getPlainText() {
+                let text = '';
+                Object.entries(this.generatedLyrics).forEach(([key, lines]) => {
+                    const section = key.split('_')[0];
+                    text += `[${section.toUpperCase()}]\n`;
+                    lines.forEach(line => {
+                        text += line + '\n';
+                    });
+                    text += '\n';
+                });
+                return text;
+            }
+
+            getExportText() {
+                let text = `Industrial Song - Lyrics\n`;
+                text += `Generated: ${new Date().toLocaleString()}\n\n`;
+                text += this.getPlainText();
+                return text;
+            }
+
+            randomChoice(arr, seed) {
+                const x = Math.sin(seed) * 10000;
+                const random = x - Math.floor(x);
+                return arr[Math.floor(random * arr.length)];
+            }
+        }
+
+        // MIDI Generator
+        class MidiGenerator {
+            constructor() {
+                this.ticksPerQuarter = 480;
+            }
+
+            generate(sections, tempo, intensity, distortion, seed) {
+                const microsecondsPerQuarter = Math.round(60000000 / tempo);
+                
+                // MIDI file header
+                const header = [
+                    0x4D, 0x54, 0x68, 0x64, // "MThd"
+                    0x00, 0x00, 0x00, 0x06, // Header length
+                    0x00, 0x01, // Format type 1
+                    0x00, 0x03, // Number of tracks (tempo, bass, lead)
+                    (this.ticksPerQuarter >> 8) & 0xFF, this.ticksPerQuarter & 0xFF
+                ];
+                
+                // Create tracks
+                const track1 = this.createTempoTrack(microsecondsPerQuarter, sections);
+                const track2 = this.createBassTrack(sections, intensity, seed);
+                const track3 = this.createLeadTrack(sections, intensity, seed);
+                
+                // Combine all parts
+                return new Uint8Array([...header, ...track1, ...track2, ...track3]);
+            }
+
+            createTempoTrack(microsecondsPerQuarter, sections) {
+                let track = [];
+                
+                // Track header
+                track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
+                track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
+                
+                // Tempo meta event
+                track.push(0x00, 0xFF, 0x51, 0x03);
+                track.push((microsecondsPerQuarter >> 16) & 0xFF);
+                track.push((microsecondsPerQuarter >> 8) & 0xFF);
+                track.push(microsecondsPerQuarter & 0xFF);
+                
+                // Initial time signature (4/4)
+                track.push(0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
+                
+                // End of track
+                track.push(...this.encodeVariableLength(0), 0xFF, 0x2F, 0x00);
+                
+                // Update track length
+                const length = track.length - 8;
+                track[4] = (length >> 24) & 0xFF;
+                track[5] = (length >> 16) & 0xFF;
+                track[6] = (length >> 8) & 0xFF;
+                track[7] = length & 0xFF;
+                
+                return track;
+            }
+
+            createBassTrack(sections, intensity, seed) {
+                let track = [];
+                track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
+                track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
+                
+                // Program change to synth bass
+                track.push(0x00, 0xC0, 0x26); // Synth Bass 1 on channel 1
+                
+                // Simple bass pattern (simplified for demo)
+                sections.forEach((section, sectionIndex) => {
+                    const bars = 4; // Simplified
+                    for (let bar = 0; bar < bars; bar++) {
+                        // Note on
+                        track.push(...this.encodeVariableLength(0));
+                        track.push(0x90, 36, 80); // C2
+                        
+                        // Note off
+                        track.push(...this.encodeVariableLength(this.ticksPerQuarter));
+                        track.push(0x80, 36, 0);
+                    }
+                });
+                
+                // End of track
+                track.push(...this.encodeVariableLength(0), 0xFF, 0x2F, 0x00);
+                
+                // Update track length
+                const length = track.length - 8;
+                track[4] = (length >> 24) & 0xFF;
+                track[5] = (length >> 16) & 0xFF;
+                track[6] = (length >> 8) & 0xFF;
+                track[7] = length & 0xFF;
+                
+                return track;
+            }
+
+            createLeadTrack(sections, intensity, seed) {
+                let track = [];
+                track.push(0x4D, 0x54, 0x72, 0x6B); // "MTrk"
+                track.push(0x00, 0x00, 0x00, 0x00); // Length placeholder
+                
+                // Program change to lead synth
+                track.push(0x00, 0xC1, 0x50); // Synth Lead on channel 2
+                
+                // Simple lead pattern (simplified for demo)
+                let accumulatedRest = 0;
+                sections.forEach((section, sectionIndex) => {
+                    if (section === 'chorus' || section === 'bridge') {
+                        // Play a note
+                        track.push(...this.encodeVariableLength(accumulatedRest));
+                        track.push(0x91, 60, 70); // C4
+                        accumulatedRest = 0;
+                        
+                        track.push(...this.encodeVariableLength(this.ticksPerQuarter));
+                        track.push(0x81, 60, 0);
+                    } else {
+                        // Rest
+                        accumulatedRest += this.ticksPerQuarter * 4;
+                    }
+                });
+                
+                // End of track
+                track.push(...this.encodeVariableLength(0), 0xFF, 0x2F, 0x00);
+                
+                // Update track length
+                const length = track.length - 8;
+                track[4] = (length >> 24) & 0xFF;
+                track[5] = (length >> 16) & 0xFF;
+                track[6] = (length >> 8) & 0xFF;
+                track[7] = length & 0xFF;
+                
+                return track;
+            }
+
+            encodeVariableLength(value) {
+                const bytes = [];
+                bytes.push(value & 0x7F);
+                value >>= 7;
+                while (value > 0) {
+                    bytes.unshift((value & 0x7F) | 0x80);
+                    value >>= 7;
+                }
+                return bytes;
+            }
+        }
+
+        // Main App
+        class IndustrialMusicApp {
+            constructor() {
+                this.audioEngine = new AudioEngine();
+                this.songStructure = new SongStructure();
+                this.visualizer = null;
+                this.vocalSynth = null;
+                this.lyricsGen = new LyricsGenerator();
+                this.midiGen = new MidiGenerator();
+                
+                this.midiData = null;
+                this.currentSeed = Date.now();
+                this.isLooping = false;
+                this.isPaused = false;
+                this.sectionTimeSignatures = [];
+                this.totalSongDuration = 0;
+                
+                // For continuous mode
+                this.maxBeats = 0;
+                this.scheduleNextBeat = null;
+            }
+
+            async initialize() {
+                try {
+                    // Initialize audio engine
+                    const audioInitialized = await this.audioEngine.initialize();
+                    if (!audioInitialized) {
+                        this.showStatus('Error: Web Audio API not supported');
+                        return false;
+                    }
+                    
+                    // Initialize components
+                    this.songStructure.initialize();
+                    this.visualizer = new Visualizer(this.audioEngine);
+                    this.visualizer.initialize();
+                    this.vocalSynth = new VocalSynthesizer(this.audioEngine);
+                    
+                    // Setup UI event listeners
+                    this.setupEventListeners();
+                    
+                    // Initialize custom dropdown
+                    this.initializeVocalDropdown();
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Error during initialization:', error);
+                    this.showStatus('Error: ' + error.message);
+                    return false;
+                }
+            }
+
+            setupEventListeners() {
+                try {
+                    // Control sliders
+                    const tempoSlider = document.getElementById('tempo');
+                    const intensitySlider = document.getElementById('intensity');
+                    const distortionSlider = document.getElementById('distortion');
+                    const songLengthSlider = document.getElementById('songLength');
+                    
+                    if (tempoSlider) {
+                        tempoSlider.addEventListener('input', (e) => {
+                            const value = parseInt(e.target.value);
+                            this.audioEngine.updateTempo(value);
+                            document.getElementById('tempoValue').textContent = value;
+                        });
+                    }
+                    
+                    if (intensitySlider) {
+                        intensitySlider.addEventListener('input', (e) => {
+                            const value = parseInt(e.target.value);
+                            this.audioEngine.updateIntensity(value);
+                            document.getElementById('intensityValue').textContent = value;
+                        });
+                    }
+                    
+                    if (distortionSlider) {
+                        distortionSlider.addEventListener('input', (e) => {
+                            const value = parseInt(e.target.value);
+                            this.audioEngine.updateDistortion(value);
+                            document.getElementById('distortionValue').textContent = value;
+                        });
+                    }
+                    
+                    if (songLengthSlider) {
+                        songLengthSlider.addEventListener('input', (e) => {
+                            const minutes = Math.round(5 * parseFloat(e.target.value));
+                            document.getElementById('songLengthValue').textContent = e.target.value + 'x (~' + minutes + ' min)';
+                        });
+                    }
+                    
+                    // Buttons
+                    const generateBtn = document.getElementById('generateBtn');
+                    const playBtn = document.getElementById('playBtn');
+                    const loopBtn = document.getElementById('loopBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    
+                    if (!generateBtn || !playBtn || !loopBtn || !stopBtn) {
+                        throw new Error('Required buttons not found in DOM');
+                    }
+                    
+                    generateBtn.addEventListener('click', () => this.generateSong());
+                    playBtn.addEventListener('click', () => this.play());
+                    loopBtn.addEventListener('click', () => this.toggleLoop());
+                    stopBtn.addEventListener('click', () => this.stop());
+                    if (downloadBtn) {
+                        downloadBtn.addEventListener('click', () => this.downloadMidi());
+                    }
+                
+                    // Lyrics buttons (these are hidden initially)
+                    const regenBtn = document.getElementById('regenerateLyricsBtn');
+                    const copyBtn = document.getElementById('copyLyricsBtn');
+                    const exportBtn = document.getElementById('exportLyricsBtn');
+                    
+                    if (regenBtn) regenBtn.addEventListener('click', () => this.regenerateLyrics());
+                    if (copyBtn) copyBtn.addEventListener('click', () => this.copyLyrics());
+                    if (exportBtn) exportBtn.addEventListener('click', () => this.exportLyrics());
+                    
+                    // Spacebar pause/resume
+                    document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+                    
+                } catch (error) {
+                    console.error('Error setting up event listeners:', error);
+                    throw error;
+                }
+            }
+
+            initializeVocalDropdown() {
+                const vocalDisplay = document.getElementById('vocalDisplay');
+                const vocalOptions = document.getElementById('vocalOptions');
+                const vocalInput = document.getElementById('vocals');
+                
+                // Set default to whisper
+                vocalInput.value = 'whisper';
+                vocalDisplay.textContent = 'Whisper';
+                
+                vocalDisplay.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    vocalOptions.classList.toggle('select-hide');
+                });
+                
+                vocalOptions.querySelectorAll('div').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const value = option.getAttribute('data-value');
+                        const text = option.textContent;
+                        vocalInput.value = value;
+                        vocalDisplay.textContent = text;
+                        vocalOptions.classList.add('select-hide');
+                    });
+                });
+                
+                document.addEventListener('click', () => {
+                    vocalOptions.classList.add('select-hide');
+                });
+            }
+
+            generateSong() {
+                try {
+                    this.currentSeed = Date.now() + Math.random() * 10000;
+                    const sections = this.songStructure.getSections();
+                    
+                    if (sections.length === 0) {
+                        this.showStatus('Please add sections to the song structure!');
+                        return;
+                    }
+                    
+                    // Generate MIDI data
+                    this.midiData = this.midiGen.generate(
+                        sections,
+                        this.audioEngine.currentTempo,
+                        this.audioEngine.currentIntensity,
+                        this.audioEngine.currentDistortion,
+                        this.currentSeed
+                    );
+                    
+                    // Generate lyrics
+                    const lyrics = this.lyricsGen.generate(sections, this.currentSeed);
+                    this.displayLyrics(lyrics);
+                    
+                    // Show UI elements
+                    document.getElementById('downloadBtn').style.display = 'inline-block';
+                    document.getElementById('lyricsContainer').style.display = 'block';
+                    
+                    // Reset playback state
+                    this.audioEngine.isPlaying = false;
+                    this.isPaused = false;
+                    
+                    this.showStatus(`Song generated successfully! (Seed: ${Math.floor(this.currentSeed)})`);
+                } catch (error) {
+                    console.error('Error generating song:', error);
+                    this.showStatus('Error generating song: ' + error.message);
+                }
+            }
+
+            play() {
+                if (this.audioEngine.isPlaying) return;
+                
+                this.isLooping = false;
+                this.startPlayback();
+            }
+
+            toggleLoop() {
+                this.isLooping = !this.isLooping;
+                document.getElementById('loopBtn').classList.toggle('active', this.isLooping);
+                
+                if (this.isLooping) {
+                    this.showStatus('Continuous music mode enabled');
+                    if (!this.audioEngine.isPlaying) {
+                        this.startPlayback();
+                    }
+                } else {
+                    this.showStatus(this.audioEngine.isPlaying ? 'Continuous mode disabled - will stop after current song' : 'Ready');
+                }
+            }
+
+            async startPlayback() {
+                const sections = this.songStructure.getSections();
+                if (sections.length === 0) {
+                    this.showStatus('Please add sections to the song structure!');
+                    return;
+                }
+                
+                // Initialize audio if needed
+                if (!this.audioEngine.audioContext) {
+                    await this.audioEngine.initialize();
+                }
+                
+                // Start visualizer
+                document.getElementById('analyzerContainer').style.display = 'block';
+                if (!this.visualizer.animationId) {
+                    this.visualizer.startAnimation();
+                }
+                
+                // Show UI elements
+                document.getElementById('progressBar').style.display = 'block';
+                document.getElementById('vocalOutputContainer').style.display = 'block';
+                document.getElementById('vocalText').textContent = '...';
+                
+                // Reset state
+                this.audioEngine.isPlaying = true;
+                this.audioEngine.currentSection = 0;
+                this.audioEngine.currentBeat = 0;
+                this.audioEngine.totalBeats = 0;
+                this.isPaused = false;
+                
+                // Calculate song parameters
+                this.calculateSongParameters(sections);
+                
+                // Start playback loop
+                this.scheduleNextBeat = () => {
+                    if (this.isPaused) return;
+                    
+                    if (this.audioEngine.totalBeats >= this.maxBeats || this.audioEngine.currentSection >= sections.length) {
+                        if (this.isLooping) {
+                            this.handleLoop(sections);
+                            return;
+                        } else {
+                            this.stop();
+                            return;
+                        }
+                    }
+                    
+                    // Play current beat
+                    const section = sections[this.audioEngine.currentSection];
+                    this.playBeat(section, sections);
+                    
+                    // Schedule next beat
+                    const beatDuration = 60 / this.audioEngine.currentTempo;
+                    const nextBeatTime = beatDuration * 250; // Quarter note
+                    this.audioEngine.playbackInterval = setTimeout(this.scheduleNextBeat, nextBeatTime);
+                };
+                
+                this.scheduleNextBeat();
+                this.showStatus(this.isLooping ? 'Continuous music mode...' : 'Playing full song...');
+            }
+
+            calculateSongParameters(sections) {
+                const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                this.maxBeats = 0;
+                this.totalSongDuration = 0;
+                
+                // Generate time signatures
+                this.sectionTimeSignatures = sections.map((section, index) => {
+                    let timeSig = this.songStructure.timeSignatures[section] || { numerator: 4, denominator: 4 };
+                    if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+                        timeSig = this.songStructure.getRandomTimeSignature();
+                    }
+                    return timeSig;
+                });
+                
+                // Calculate total beats and duration
+                sections.forEach((section, index) => {
+                    const baseBars = this.songStructure.barsPerSection[section] || 8;
+                    const bars = Math.round(baseBars * songLengthMultiplier);
+                    const timeSig = this.sectionTimeSignatures[index];
+                    const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                    this.maxBeats += bars * beatsPerBar;
+                    
+                    const beatDuration = 60 / this.audioEngine.currentTempo;
+                    const sectionDuration = bars * beatsPerBar * beatDuration;
+                    this.totalSongDuration += sectionDuration;
+                });
+                
+                this.audioEngine.totalSongDuration = this.totalSongDuration;
+                this.audioEngine.startTime = this.audioEngine.audioContext.currentTime;
+            }
+
+            playBeat(section, sections) {
+                // Add timing variations
+                const grooveAmount = 0.02;
+                const rushDragAmount = 0.015;
+                const beatDuration = 60 / this.audioEngine.currentTempo;
+                
+                let timingOffset = 0;
+                if (this.audioEngine.currentBeat % 2 === 1) {
+                    timingOffset += grooveAmount * beatDuration * 250;
+                }
+                
+                const humanError = (Math.random() - 0.5) * rushDragAmount * beatDuration * 250;
+                timingOffset += humanError;
+                
+                // Play audio
+                setTimeout(() => {
+                    const skipProbability = section === 'breakdown' ? 0.1 : 0.05;
+                    if (Math.random() > skipProbability) {
+                        this.audioEngine.playSection(
+                            section,
+                            this.audioEngine.currentBeat,
+                            this.audioEngine.currentIntensity,
+                            this.audioEngine.currentDistortion,
+                            this.audioEngine.currentSection,
+                            this.currentSeed
+                        );
+                    }
+                }, timingOffset);
+                
+                // Update state
+                this.audioEngine.currentBeat++;
+                this.audioEngine.totalBeats++;
+                
+                // Update UI
+                this.updateUI(section, sections);
+                
+                // Check vocals
+                this.checkVocals(section);
+                
+                // Check section end
+                const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                const baseBars = this.songStructure.barsPerSection[section] || 8;
+                const timeSig = this.sectionTimeSignatures[this.audioEngine.currentSection];
+                const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+                
+                if (this.audioEngine.currentBeat >= sectionBeats) {
+                    this.audioEngine.currentBeat = 0;
+                    this.audioEngine.currentSection++;
+                }
+            }
+
+            updateUI(section, sections) {
+                // Update progress
+                const progress = (this.audioEngine.totalBeats / this.maxBeats) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                
+                // Update labels
+                const elapsed = this.audioEngine.audioContext.currentTime - this.audioEngine.startTime;
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = Math.floor(elapsed % 60);
+                const totalMinutes = Math.floor(this.totalSongDuration / 60);
+                const totalSeconds = Math.floor(this.totalSongDuration % 60);
+                
+                document.getElementById('currentTimeLabel').textContent = 
+                    `Time: ${minutes}:${seconds.toString().padStart(2, '0')} / ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+                
+                if (this.audioEngine.currentSection < sections.length) {
+                    document.getElementById('currentSectionLabel').textContent = 
+                        `Section: ${section.toUpperCase()} (${this.audioEngine.currentSection + 1}/${sections.length})`;
+                    
+                    // Update vocal output section state
+                    const sectionStateElement = document.getElementById('sectionState');
+                    if (sectionStateElement) {
+                        sectionStateElement.textContent = section.toUpperCase();
+                    }
+                    
+                    // Update section progress
+                    const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+                    const baseBars = this.songStructure.barsPerSection[section] || 8;
+                    const timeSig = this.sectionTimeSignatures[this.audioEngine.currentSection] || { numerator: 4, denominator: 4 };
+                    const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+                    const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+                    const sectionProgress = (this.audioEngine.currentBeat / sectionBeats) * 100;
+                    
+                    document.getElementById('sectionProgressFill').style.width = sectionProgress + '%';
+                    document.getElementById('sectionProgressLabel').textContent = `Progress: ${Math.round(sectionProgress)}%`;
+                    
+                    // Highlight current section
+                    this.highlightCurrentSection(this.audioEngine.currentSection);
+                }
+                
+                // Update current lyric
+                this.lyricsGen.updateCurrentLyric(this.audioEngine.currentSection, this.audioEngine.currentBeat);
+            }
+
+            checkVocals(section) {
+                const vocalType = document.getElementById('vocals').value;
+                if (vocalType !== 'off' && this.vocalSynth.shouldVocalize(section, this.audioEngine.currentBeat)) {
+                    const lyricText = this.lyricsGen.getCurrentLyricText(this.audioEngine.currentSection, this.audioEngine.currentBeat);
+                    if (lyricText) {
+                        const words = lyricText.split(' ');
+                        const phrase = words.slice(0, Math.min(3, words.length)).join(' ');
+                        this.vocalSynth.synthesize(phrase, vocalType);
+                    }
+                }
+            }
+
+            highlightCurrentSection(sectionIndex) {
+                const allSections = document.querySelectorAll('#structureEditor .section-block');
+                allSections.forEach(section => section.classList.remove('playing'));
+                
+                if (sectionIndex >= 0 && sectionIndex < allSections.length) {
+                    allSections[sectionIndex].classList.add('playing');
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
+                }
+            }
+
+            handleLoop(sections) {
+                console.log('Looping to new variation...');
+                
+                // Clean up
+                this.audioEngine.cleanupOscillators();
+                
+                // Add delay before starting new loop
+                setTimeout(() => {
+                    // Reset state
+                    this.audioEngine.currentSection = 0;
+                    this.audioEngine.currentBeat = 0;
+                    this.audioEngine.totalBeats = 0;
+                    this.currentSeed = Date.now() + Math.random() * 10000;
+                    document.getElementById('progressFill').style.width = '0%';
+                    
+                    // Optionally change structure
+                    if (Math.random() < 0.3) {
+                        const structures = ['standard', 'simple', 'extended', 'industrial'];
+                        const randomStructure = structures[Math.floor(Math.random() * structures.length)];
+                        this.songStructure.loadPreset(randomStructure);
+                        sections = this.songStructure.getSections();
+                    }
+                    
+                    // Recalculate parameters
+                    this.calculateSongParameters(sections);
+                    
+                    // Regenerate lyrics
+                    const lyrics = this.lyricsGen.generate(sections, this.currentSeed);
+                    this.displayLyrics(lyrics);
+                    
+                    this.showStatus('Continuous music mode... (New variation)');
+                    
+                    // Continue playback
+                    this.scheduleNextBeat();
+                }, 500);
+            }
+
+            stop() {
+                this.audioEngine.stop();
+                
+                if (this.audioEngine.playbackInterval) {
+                    clearTimeout(this.audioEngine.playbackInterval);
+                    this.audioEngine.playbackInterval = null;
+                }
+                
+                // Reset UI
+                document.getElementById('status').textContent = 'Playback stopped';
+                document.getElementById('status').classList.remove('playing');
+                document.getElementById('status').classList.remove('paused');
+                document.getElementById('progressBar').style.display = 'none';
+                document.getElementById('progressFill').style.width = '0%';
+                
+                // Clear visualizer
+                if (this.visualizer.animationId) {
+                    this.visualizer.stopAnimation();
+                    this.visualizer.clear();
+                }
+                
+                // Reset section highlights
+                const allSections = document.querySelectorAll('#structureEditor .section-block');
+                allSections.forEach(section => section.classList.remove('playing'));
+                
+                // Reset labels
+                document.getElementById('currentSectionLabel').textContent = 'Section: -';
+                document.getElementById('currentTimeLabel').textContent = 'Time: 0:00 / 0:00';
+                document.getElementById('sectionProgressFill').style.width = '0%';
+                document.getElementById('sectionProgressLabel').textContent = 'Progress: 0%';
+                
+                // Hide vocal output
+                document.getElementById('vocalOutputContainer').style.display = 'none';
+                
+                // Clear current lyrics
+                this.lyricsGen.clearCurrentLyric();
+            }
+
+            handleKeyPress(e) {
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    
+                    if (!this.audioEngine.isPlaying) {
+                        if (this.midiData || this.isLooping) {
+                            this.startPlayback();
+                        }
+                    } else {
+                        this.togglePause();
+                    }
+                }
+            }
+
+            togglePause() {
+                if (!this.isPaused) {
+                    // Pause
+                    this.isPaused = true;
+                    
+                    if (this.audioEngine.playbackInterval) {
+                        clearTimeout(this.audioEngine.playbackInterval);
+                        this.audioEngine.playbackInterval = null;
+                    }
+                    
+                    this.showStatus('Paused');
+                    document.getElementById('status').classList.add('paused');
+                    
+                    // Stop all sounds
+                    this.audioEngine.activeOscillators.forEach(item => {
+                        try {
+                            item.osc.stop(this.audioEngine.audioContext.currentTime);
+                        } catch (e) {}
+                    });
+                    this.audioEngine.activeOscillators = [];
+                } else {
+                    // Resume
+                    this.isPaused = false;
+                    this.showStatus(this.isLooping ? 'Continuous music mode...' : 'Playing full song...');
+                    document.getElementById('status').classList.remove('paused');
+                    
+                    if (this.scheduleNextBeat) {
+                        this.scheduleNextBeat();
+                    }
+                }
+            }
+
+            downloadMidi() {
+                if (!this.midiData) return;
+                
+                const blob = new Blob([this.midiData], { type: 'audio/midi' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'industrial_song.mid';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                this.showStatus('MIDI file downloaded!');
+            }
+
+            regenerateLyrics() {
+                this.currentSeed = Date.now() + Math.random() * 10000;
+                const sections = this.songStructure.getSections();
+                const lyrics = this.lyricsGen.generate(sections, this.currentSeed);
+                this.displayLyrics(lyrics);
+            }
+
+            copyLyrics() {
+                const text = this.lyricsGen.getPlainText();
+                navigator.clipboard.writeText(text).then(() => {
+                    const btn = document.getElementById('copyLyricsBtn');
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 2000);
+                });
+            }
+
+            exportLyrics() {
+                const text = this.lyricsGen.getExportText();
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'industrial_song_lyrics.txt';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            displayLyrics(lyrics) {
+                this.lyricsGen.display(lyrics);
+            }
+
+            showStatus(message) {
+                document.getElementById('status').textContent = message;
+            }
+        }
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('Initializing Industrial Music App...');
+            try {
+                const app = new IndustrialMusicApp();
+                window.industrialApp = app; // For debugging
+                
+                const initialized = await app.initialize();
+                if (initialized) {
+                    console.log('App successfully initialized');
+                    document.getElementById('status').textContent = 'Ready';
+                } else {
+                    console.error('App initialization failed');
+                }
+            } catch (error) {
+                console.error('Error starting app:', error);
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Christian's Song Creator</h1>
+        
+        <div class="song-structure">
+            <h3>Song Structure</h3>
+            
+            <div class="preset-buttons">
+                <button class="preset-btn" data-preset="standard">Standard</button>
+                <button class="preset-btn" data-preset="simple">Simple</button>
+                <button class="preset-btn" data-preset="extended">Extended</button>
+                <button class="preset-btn" data-preset="industrial">Industrial</button>
+            </div>
+            
+            <div class="section-palette">
+                <h4>Available Sections (drag to add):</h4>
+                <div class="palette-sections" id="sectionPalette">
+                    <div class="section-block intro draggable-section" draggable="true" data-section="intro">INTRO</div>
+                    <div class="section-block verse draggable-section" draggable="true" data-section="verse">VERSE</div>
+                    <div class="section-block pre-chorus draggable-section" draggable="true" data-section="pre-chorus">PRE-CHORUS</div>
+                    <div class="section-block chorus draggable-section" draggable="true" data-section="chorus">CHORUS</div>
+                    <div class="section-block bridge draggable-section" draggable="true" data-section="bridge">BRIDGE</div>
+                    <div class="section-block instrumental draggable-section" draggable="true" data-section="instrumental">INSTRUMENTAL</div>
+                    <div class="section-block breakdown draggable-section" draggable="true" data-section="breakdown">BREAKDOWN</div>
+                    <div class="section-block outro draggable-section" draggable="true" data-section="outro">OUTRO</div>
+                </div>
+            </div>
+            
+            <div class="structure-editor" id="structureEditor">
+                <div class="drop-indicator" id="dropIndicator"></div>
+            </div>
+            
+            <div class="structure-info" id="structureInfo">Drag sections from above or click a preset to start</div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="tempo">Tempo (BPM):</label>
+                <input type="range" id="tempo" min="26" max="140" value="70">
+                <span class="value" id="tempoValue">70</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="intensity">Intensity:</label>
+                <input type="range" id="intensity" min="1" max="10" value="7">
+                <span class="value" id="intensityValue">7</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="distortion">Distortion:</label>
+                <input type="range" id="distortion" min="0" max="100" value="60">
+                <span class="value" id="distortionValue">60</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="songLength">Song Length:</label>
+                <input type="range" id="songLength" min="0.5" max="2" step="0.1" value="1">
+                <span class="value" id="songLengthValue">1.0x (~5 min)</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="vocals">Vocals:</label>
+                <div class="custom-select">
+                    <div class="select-selected" id="vocalDisplay">Whisper</div>
+                    <div class="select-items select-hide" id="vocalOptions">
+                        <div data-value="off">Off</div>
+                        <div data-value="robotic">Robotic</div>
+                        <div data-value="whisper">Whisper</div>
+                        <div data-value="distorted">Distorted</div>
+                    </div>
+                </div>
+                <input type="hidden" id="vocals" value="whisper">
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="generateBtn">Generate Song</button>
+            <button id="playBtn">Play Full Song</button>
+            <button id="loopBtn">Continuous music</button>
+            <button id="stopBtn">Stop</button>
+            <button id="downloadBtn" style="display: none;">Download MIDI</button>
+        </div>
+        
+        <div id="status"></div>
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="analyzer-container" id="analyzerContainer" style="display: none;">
+            <h3>Frequency Analyzer</h3>
+            <canvas id="analyzerCanvas"></canvas>
+            <div class="frequency-labels">
+                <span>20Hz</span>
+                <span>100Hz</span>
+                <span>500Hz</span>
+                <span>1kHz</span>
+                <span>5kHz</span>
+                <span>10kHz</span>
+                <span>20kHz</span>
+            </div>
+            <div class="section-progress-container">
+                <span id="currentSectionLabel" style="min-width: 150px;">Section: -</span>
+                <div class="section-progress-slider">
+                    <div class="section-progress-fill" id="sectionProgressFill"></div>
+                </div>
+            </div>
+            <div class="analyzer-info">
+                <span id="sectionProgressLabel">Progress: 0%</span>
+                <span id="currentTimeLabel">Time: 0:00 / 0:00</span>
+            </div>
+            <div class="analyzer-controls">
+                <button class="analyzer-btn active" id="barsBtn" data-mode="bars">Bars</button>
+                <button class="analyzer-btn" id="waveBtn" data-mode="wave">Waveform</button>
+                <button class="analyzer-btn" id="circleBtn" data-mode="circle">Circle</button>
+            </div>
+        </div>
+        
+        <div class="lyrics-container" id="lyricsContainer" style="display: none;">
+            <h3>
+                <span>Generated Lyrics</span>
+                <button class="lyrics-btn" id="copyLyricsBtn">Copy</button>
+            </h3>
+            <div class="lyrics-display" id="lyricsDisplay">
+                <div class="lyrics-line">Click "Generate Song" to create lyrics...</div>
+            </div>
+            <div class="lyrics-controls">
+                <button class="lyrics-btn" id="regenerateLyricsBtn">Regenerate</button>
+                <button class="lyrics-btn" id="exportLyricsBtn">Export .txt</button>
+            </div>
+        </div>
+        
+        <div class="vocal-output-container" id="vocalOutputContainer" style="display: none;">
+            <h3>Vocal Output</h3>
+            <div class="vocal-output-display" id="vocalOutputDisplay">
+                <div class="section-state" id="sectionState">INTRO</div>
+                <span class="vocal-text" id="vocalText">...</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
