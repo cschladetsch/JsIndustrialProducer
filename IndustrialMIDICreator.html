@@ -1435,6 +1435,10 @@
                 document.getElementById('status').textContent = 'Song generated successfully! (Seed: ' + Math.floor(currentSeed) + ')';
                 document.getElementById('downloadBtn').style.display = 'inline-block';
                 
+                // Reset playback state after generation
+                isPlaying = false;
+                isPaused = false;
+                
                 // Generate lyrics and show container
                 generateLyrics();
                 document.getElementById('lyricsContainer').style.display = 'block';
@@ -2047,7 +2051,6 @@
         
         // Play preview using Web Audio API
         function playPreview() {
-            console.log('playPreview called', { isPlaying, isPaused });
             try {
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -2058,9 +2061,11 @@
             }
             
             if (isPlaying) {
-                console.log('Already playing, returning early');
                 return;
             }
+            
+            // Reset pause state when starting fresh
+            isPaused = false;
             
             if (!midiData) {
                 currentSeed = Date.now() + Math.random() * 10000;
@@ -2574,7 +2579,6 @@
             }
         });
         document.getElementById('playBtn').addEventListener('click', () => {
-            console.log('Play button clicked', { isPlaying, midiData: !!midiData, songSections });
             isLooping = false;
             playPreview();
         });
