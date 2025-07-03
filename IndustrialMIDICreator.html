@@ -826,6 +826,7 @@
         let speechSynth = window.speechSynthesis;
         let currentVocalType = 'off';
         let vocalQueue = [];
+        let totalBeats = 0;
         
         // Seeded random number generator
         function seededRandom(seed) {
@@ -2097,7 +2098,7 @@
             }
             
             const beatDuration = 60 / tempo;
-            let totalBeats = 0;
+            totalBeats = 0; // Use global variable
             let maxBeats = 0;
             const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
             
