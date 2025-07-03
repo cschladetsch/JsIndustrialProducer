@@ -64,11 +64,23 @@ The application generates Type 1 MIDI files with:
 
 ### Audio Synthesis
 The full song playback uses Web Audio API to create:
-- **Sawtooth waves** for bass sounds with adjustable distortion
-- **Square waves** for lead sounds with low-pass filtering
-- **Dynamic gain control** based on intensity settings
-- **Section-specific frequency patterns** for musical variation
-- **Complete song structure** with all sections played in sequence
+- **Multi-oscillator synthesis**:
+  - Dual-oscillator bass with sub-bass layer
+  - Variable waveforms (sawtooth, square, triangle)
+  - Detuning and filter modulation
+- **Dynamic drum patterns**:
+  - Tool-inspired polyrhythmic patterns
+  - Ghost notes and double kicks
+  - Section-specific variations
+- **Lead synthesis**:
+  - Scale-based melodic generation
+  - Chromatic passing tones
+  - Delay effects and filtering
+- **Effects processing**:
+  - Waveshaping distortion
+  - Dynamic filter envelopes
+  - LFO modulation
+  - NIN-style digital glitches
 - **Real-time FFT analysis** with 2048-point resolution
 
 ### Frequency Analyzer
@@ -150,10 +162,16 @@ JsIndustrialProducer/
 
    Or simply double-click the `index.html` file in your file manager.
 
-   Or use the included launcher script:
+   Or use the included launcher script (requires display):
    ```bash
    ./r
    ```
+
+3. **For headless/server environments**, start a web server:
+   ```bash
+   python3 -m http.server 8080
+   ```
+   Then access the application at `http://localhost:8080` in your browser.
 
 ### Using the Application
 
@@ -318,15 +336,35 @@ Test coverage includes:
 
 ## Recent Updates
 
-### Version 2.4 - Playback Fixes & Project Cleanup (Latest)
+### Version 2.5 - Tool/NIN-Inspired Variation & Stability (Latest)
+- **Major Audio Engine Improvements**:
+  - Added Tool/Nine Inch Nails-inspired variation and instability
+  - Dynamic pattern generation prevents repetitive music
+  - Fixed audio crumpling/failing after extended playback
+  - Resolved memory leaks from untracked oscillators
+  - Added oscillator limiting to prevent audio overload
+- **Enhanced Music Generation**:
+  - Polyrhythmic drum patterns with ghost notes and double kicks
+  - Scale-based lead generation with chromatic passing tones
+  - Dual-oscillator bass synthesis with sub-bass layer
+  - Dynamic filter envelopes and LFO modulation
+  - NIN-style digital glitch effects
+- **Improved Continuous Mode**:
+  - True randomization using multiple entropy sources
+  - 50% chance of structure changes between loops
+  - Automatic tempo/intensity variations (±10 BPM, ±2 intensity)
+  - Section shuffling for unpredictable arrangements
+  - Error handling to prevent crashes
+- **Stability Fixes**:
+  - Periodic oscillator cleanup every 16 beats
+  - Maximum 80 concurrent oscillators limit
+  - Better error handling in playback loop
+  - Debug logging for troubleshooting
+
+### Version 2.4 - Playback Fixes & Project Cleanup
 - Fixed audio playback stopping after ~30 seconds
-- Enhanced Vocal Output section with detailed real-time information:
-  - Current vocal type display
-  - Beat counter within sections
-  - Next vocal prediction
-  - Visual feedback between vocals
+- Enhanced Vocal Output section with detailed real-time information
 - Improved progress bar accuracy with proper beat counting
-- Added debug logging for troubleshooting
 - Cleaned up project structure - removed all unused files
 - Changed default vocal type from "Whisper" to "Robotic"
 
