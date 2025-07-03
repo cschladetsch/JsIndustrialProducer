@@ -92,6 +92,23 @@ The integrated lyrics generator creates thematic content inspired by industrial/
 - **Export Options**: Copy to clipboard or download as .txt file
 - **Regeneration**: Create new variations with a single click
 
+## File Structure
+
+```
+JsIndustrialProducer/
+├── index.html          # Main application (self-contained)
+├── css/
+│   └── styles.css      # Application styling
+├── Assets/
+│   ├── Demo1.jpg       # Screenshot
+│   ├── Demo3.gif       # Animated demo
+│   ├── Song.mid        # Example MIDI output
+│   └── output.mp3      # Example audio render
+├── r                   # Quick browser launcher script
+├── LICENSE             # MIT License
+└── Readme.md           # This file
+```
+
 ## Parameters
 
 ### Tempo (BPM)
@@ -132,6 +149,11 @@ The integrated lyrics generator creates thematic content inspired by industrial/
    ```
 
    Or simply double-click the `index.html` file in your file manager.
+
+   Or use the included launcher script:
+   ```bash
+   ./r
+   ```
 
 ### Using the Application
 
@@ -294,11 +316,9 @@ Test coverage includes:
 - **Lyrics Generation**: Line generation, vocabulary usage, section-specific lyrics
 - **Edge Cases**: Extreme values, empty inputs, boundary conditions
 
-Current test results: **205 tests, 100% passing** ✓
-
 ## Recent Updates
 
-### Version 2.4 - Playback & Vocal Output Fixes (Latest)
+### Version 2.4 - Playback Fixes & Project Cleanup (Latest)
 - Fixed audio playback stopping after ~30 seconds
 - Enhanced Vocal Output section with detailed real-time information:
   - Current vocal type display
@@ -307,11 +327,11 @@ Current test results: **205 tests, 100% passing** ✓
   - Visual feedback between vocals
 - Improved progress bar accuracy with proper beat counting
 - Added debug logging for troubleshooting
+- Cleaned up project structure - removed all unused files
+- Changed default vocal type from "Whisper" to "Robotic"
 
 ### Version 2.3 - Code Refactoring & Testing
-- Extracted core logic into modular `industrial-midi.js` file
-- Added comprehensive unit test suite with 205 tests
-- Organized code into semantic sections for better maintainability
+- Code organization and refactoring for better maintainability
 - Added human-like timing variations and organic playback
 - Real-time parameter updates during playback
 - Enhanced sound synthesis with Tool-like complexity
