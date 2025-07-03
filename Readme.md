@@ -22,12 +22,16 @@ JsIndustrialProducer is a web-based application that generates industrial/techno
 ## Features
 
 ### Core Functionality
-- **Real-time MIDI Generation**: Create complete MIDI songs with multiple tracks instantly
+- **Real-time MIDI Generation**: Create complete MIDI songs with 6 tracks instantly
 - **Full Song Playback**: Listen to the entire song directly in the browser using Web Audio API
 - **Drag & Drop Song Builder**: Visually arrange song sections with intuitive drag-and-drop interface
 - **Customizable Song Structure**: Choose presets or build completely custom arrangements
 - **Parameter Control**: Adjust tempo, intensity, distortion, and song length
-- **Multi-track Output**: Generates bass and lead tracks with complex time signatures
+- **Multi-track Output**: 
+  - Full drum kit with dynamic patterns
+  - Bass track with sub-bass synthesis
+  - Lead melodies with scale-based generation
+  - Atmospheric pads and effects
 - **Randomization**: Each generated song is unique with seed-based variations
 - **AI Lyrics Generation**: Automatically creates industrial/electronic themed lyrics with real-time sync
 
@@ -51,10 +55,13 @@ JsIndustrialProducer is a web-based application that generates industrial/techno
 - **AnalyserNode**: Web Audio API's FFT analysis for frequency data
 
 ### MIDI Implementation
-The application generates Type 1 MIDI files with:
+The application generates Type 1 MIDI files with 6 tracks:
 - **Track 1**: Tempo and time signature information
-- **Track 2**: Bass/rhythm track using Synth Bass 1 (Program 38)
-- **Track 3**: Lead/melody track using Synth Lead (Program 80)
+- **Track 2**: Drums (Channel 10) - Kick, snare, hi-hats with dynamic patterns
+- **Track 3**: Bass track (Channel 1) - Synth Bass 1 with variations
+- **Track 4**: Lead track (Channel 2) - Synth Lead with melodic patterns
+- **Track 5**: Pad track (Channel 3) - Warm Pad for atmospheric chords
+- **Track 6**: Effects track (Channel 4) - Atmosphere FX for ambience
 
 ### Song Structure Options
 1. **Standard**: Intro → Verse → Chorus → Verse → Chorus → Bridge → Chorus → Outro
@@ -336,7 +343,22 @@ Test coverage includes:
 
 ## Recent Updates
 
-### Version 2.5 - Tool/NIN-Inspired Variation & Stability (Latest)
+### Version 2.6 - Enhanced MIDI Export (Latest)
+- **6-Track MIDI Export** (previously only 2 tracks):
+  - Track 1: Tempo and time signature information
+  - Track 2: Full drum kit (kick, snare, hi-hats) with dynamic patterns
+  - Track 3: Bass track with all variations and effects
+  - Track 4: Lead synthesizer with scale-based melodies
+  - Track 5: Pad track with atmospheric chord progressions
+  - Track 6: Effects track for atmospheric elements
+- **MIDI Improvements**:
+  - All tracks use the same dynamic pattern generation as live playback
+  - Proper MIDI channel assignments (drums on channel 10)
+  - Velocity variations and humanization
+  - Tool-inspired polyrhythmic drum patterns in MIDI
+  - Accurate representation of the audio preview
+
+### Version 2.5 - Tool/NIN-Inspired Variation & Stability
 - **Major Audio Engine Improvements**:
   - Added Tool/Nine Inch Nails-inspired variation and instability
   - Dynamic pattern generation prevents repetitive music
