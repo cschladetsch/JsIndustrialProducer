@@ -75,37 +75,145 @@
                 
                 const now = this.audioContext.currentTime;
                 const beatDuration = 60 / this.currentTempo;
+                const rng = this.seededRandom(seed + sectionIndex + beat);
                 
-                // Determine musical properties
-                const isKick = beat % 4 === 0;
-                const isSnare = beat % 8 === 4;
-                const isHihat = beat % 2 === 1;
+                // Tool-inspired complex drum patterns
+                const drumPatterns = this.getDrumPattern(section, beat, intensity, rng);
                 
-                // Play drums
+                // Play drums with variations
                 if (section !== 'intro' || beat > 16) {
-                    if (isKick) this.playKick(now, intensity);
-                    if (isSnare) this.playSnare(now, intensity);
-                    if (isHihat && intensity > 5) this.playHihat(now, intensity);
+                    if (drumPatterns.kick) {
+                        this.playKick(now, intensity * drumPatterns.kickVelocity);
+                        // Double kick sometimes
+                        if (rng() < 0.05 && intensity > 7) {
+                            this.playKick(now + beatDuration * 0.125, intensity * 0.7);
+                        }
+                    }
+                    if (drumPatterns.snare) {
+                        this.playSnare(now, intensity * drumPatterns.snareVelocity);
+                        // Ghost notes
+                        if (rng() < 0.1) {
+                            this.playSnare(now - beatDuration * 0.0625, intensity * 0.3);
+                        }
+                    }
+                    if (drumPatterns.hihat) {
+                        this.playHihat(now, intensity * drumPatterns.hihatVelocity);
+                    }
                 }
                 
-                // Play bass
-                const bassPattern = this.getBassPattern(section, intensity, seed + sectionIndex);
+                // Play bass with evolving patterns
+                const bassPattern = this.getBassPattern(section, intensity, seed + sectionIndex + Math.floor(beat / 16));
                 const currentBassNote = bassPattern[beat % bassPattern.length];
-                this.playBass(now, currentBassNote.pitch, currentBassNote.velocity / 127, 
-                    currentBassNote.duration * beatDuration, distortion);
-                
-                // Play lead
-                if ((section === 'chorus' || section === 'bridge') && beat % 16 === 0) {
-                    const leadPattern = this.getLeadPattern(section, intensity, seed + sectionIndex);
-                    const leadNote = leadPattern[0];
-                    this.playLead(now, leadNote.pitch, leadNote.velocity / 127, 
-                        leadNote.duration * beatDuration, distortion);
+                if (currentBassNote.pitch > 0) {
+                    this.playBass(now, currentBassNote.pitch, currentBassNote.velocity / 127, 
+                        currentBassNote.duration * beatDuration, distortion);
                 }
                 
-                // Atmospheric effects
-                if (section === 'breakdown' && beat % 32 === 0) {
-                    this.playAtmosphere(now, intensity, seed);
+                // Play lead with more complex triggering
+                const leadTrigger = this.shouldPlayLead(section, beat, rng);
+                if (leadTrigger) {
+                    const leadPattern = this.getLeadPattern(section, intensity, seed + sectionIndex + Math.floor(beat / 8));
+                    const leadIndex = beat % leadPattern.length;
+                    const leadNote = leadPattern[leadIndex];
+                    if (leadNote && leadNote.pitch > 0) {
+                        this.playLead(now, leadNote.pitch, leadNote.velocity / 127, 
+                            leadNote.duration * beatDuration, distortion);
+                    }
                 }
+                
+                // Enhanced atmospheric effects
+                if ((section === 'breakdown' && beat % 16 === 0) || 
+                    (section === 'intro' && beat % 32 === 0) ||
+                    (rng() < 0.02)) {
+                    this.playAtmosphere(now, intensity, seed + beat);
+                }
+                
+                // Occasional glitch effects (NIN-inspired)
+                if (rng() < 0.03 && intensity > 6) {
+                    this.playGlitch(now, intensity, rng);
+                }
+            }
+            
+            getDrumPattern(section, beat, intensity, rng) {
+                // Base patterns with variations
+                let kick = false, snare = false, hihat = false;
+                let kickVelocity = 1, snareVelocity = 1, hihatVelocity = 0.7;
+                
+                // Different patterns for different sections
+                if (section === 'verse') {
+                    // Standard rock beat with variations
+                    kick = beat % 4 === 0 || (beat % 8 === 6 && rng() < 0.3);
+                    snare = beat % 8 === 4;
+                    hihat = beat % 2 === 1 && intensity > 4;
+                } else if (section === 'chorus') {
+                    // More intense pattern
+                    kick = beat % 4 === 0 || beat % 4 === 2 || (beat % 8 === 3 && rng() < 0.4);
+                    snare = beat % 4 === 2 || (beat % 8 === 7 && rng() < 0.3);
+                    hihat = beat % 1 === 0 && intensity > 3;
+                } else if (section === 'breakdown') {
+                    // Sparse, unpredictable
+                    kick = (beat % 7 === 0 || beat % 11 === 0) && rng() < 0.8;
+                    snare = beat % 13 === 4 && rng() < 0.6;
+                    hihat = rng() < 0.2;
+                } else if (section === 'bridge') {
+                    // Tool-style odd time feel
+                    kick = beat % 5 === 0 || beat % 7 === 3;
+                    snare = beat % 7 === 4 || beat % 5 === 3;
+                    hihat = beat % 3 === 1;
+                } else {
+                    // Default pattern
+                    kick = beat % 4 === 0;
+                    snare = beat % 8 === 4;
+                    hihat = beat % 2 === 1 && intensity > 5;
+                }
+                
+                // Velocity variations
+                kickVelocity = 0.7 + rng() * 0.3;
+                snareVelocity = 0.6 + rng() * 0.4;
+                hihatVelocity = 0.4 + rng() * 0.3;
+                
+                return { kick, snare, hihat, kickVelocity, snareVelocity, hihatVelocity };
+            }
+            
+            shouldPlayLead(section, beat, rng) {
+                if (section === 'chorus') {
+                    return beat % 4 === 0 || (beat % 8 === 3 && rng() < 0.5);
+                } else if (section === 'verse') {
+                    return beat % 16 === 0 || (beat % 16 === 8 && rng() < 0.3);
+                } else if (section === 'bridge') {
+                    return beat % 3 === 0 || beat % 5 === 0;
+                } else if (section === 'breakdown') {
+                    return rng() < 0.15;
+                }
+                return false;
+            }
+            
+            playGlitch(time, intensity, rng) {
+                // NIN-style digital glitch
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                
+                osc.type = 'square';
+                osc.frequency.value = 40 + rng() * 2000;
+                osc.frequency.exponentialRampToValueAtTime(20, time + 0.05);
+                
+                filter.type = 'bandpass';
+                filter.frequency.value = 1000 + rng() * 3000;
+                filter.Q.value = 10 + rng() * 20;
+                
+                const volume = 0.1 + (intensity / 20);
+                gain.gain.setValueAtTime(volume, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + 0.05);
+                
+                this.activeOscillators.push({ osc, stopTime: time + 0.05 });
             }
 
             playKick(time, intensity) {
@@ -186,21 +294,53 @@
             playBass(time, pitch, velocity, duration, distortion) {
                 const frequency = 440 * Math.pow(2, (pitch - 69) / 12);
                 
+                // Create multiple oscillators for richer sound
                 const osc = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
                 const gain = this.audioContext.createGain();
                 const filter = this.audioContext.createBiquadFilter();
+                const filterEnv = this.audioContext.createGain();
                 
-                osc.type = distortion > 50 ? 'sawtooth' : 'sine';
+                // Vary oscillator types for different textures
+                const waveforms = ['sawtooth', 'square', 'triangle'];
+                osc.type = distortion > 50 ? waveforms[Math.floor(Math.random() * waveforms.length)] : 'sine';
+                osc2.type = 'sine'; // Sub oscillator
+                
                 osc.frequency.setValueAtTime(frequency, time);
+                osc2.frequency.setValueAtTime(frequency * 0.5, time); // Sub bass
                 
+                // Add slight detuning for thickness
+                const detune = (Math.random() - 0.5) * 10;
+                osc.detune.setValueAtTime(detune, time);
+                
+                // Dynamic filter with envelope
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(200 + distortion * 20, time);
+                const baseFreq = 200 + distortion * 20;
+                filter.frequency.setValueAtTime(baseFreq * 4, time);
+                filter.frequency.exponentialRampToValueAtTime(baseFreq, time + 0.1);
                 filter.Q.setValueAtTime(5 + distortion / 10, time);
+                
+                // Filter modulation
+                if (Math.random() < 0.3) {
+                    const lfo = this.audioContext.createOscillator();
+                    const lfoGain = this.audioContext.createGain();
+                    lfo.frequency.value = 2 + Math.random() * 4;
+                    lfoGain.gain.value = baseFreq * 0.3;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(filter.frequency);
+                    lfo.start(time);
+                    lfo.stop(time + duration);
+                }
                 
                 const volume = velocity * 0.3;
                 gain.gain.setValueAtTime(0, time);
                 gain.gain.linearRampToValueAtTime(volume, time + 0.01);
+                gain.gain.setValueAtTime(volume, time + duration - 0.05);
                 gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                
+                // Sub oscillator mix
+                const subGain = this.audioContext.createGain();
+                subGain.gain.value = 0.4;
                 
                 if (distortion > 70) {
                     const waveshaper = this.audioContext.createWaveShaper();
@@ -208,18 +348,25 @@
                     waveshaper.oversample = '4x';
                     
                     osc.connect(waveshaper);
+                    osc2.connect(subGain);
+                    subGain.connect(waveshaper);
                     waveshaper.connect(filter);
                 } else {
                     osc.connect(filter);
+                    osc2.connect(subGain);
+                    subGain.connect(filter);
                 }
                 
                 filter.connect(gain);
                 gain.connect(this.masterGain);
                 
                 osc.start(time);
+                osc2.start(time);
                 osc.stop(time + duration);
+                osc2.stop(time + duration);
                 
                 this.activeOscillators.push({ osc, stopTime: time + duration });
+                this.activeOscillators.push({ osc: osc2, stopTime: time + duration });
             }
 
             playLead(time, pitch, velocity, duration, distortion) {
@@ -312,7 +459,9 @@
             }
 
             getBassPattern(section, intensity, seed = 0) {
-                const patterns = {
+                // Tool/NIN-inspired bass patterns with more variation
+                const rng = this.seededRandom(seed);
+                const basePatterns = {
                     intro: [
                         { pitch: 36, velocity: 60, duration: 1 },
                         { pitch: 36, velocity: 50, duration: 0.5 },
@@ -327,29 +476,117 @@
                         { pitch: 36, velocity: 80, duration: 0.25 },
                         { pitch: 36, velocity: 75, duration: 0.25 },
                         { pitch: 48, velocity: 80, duration: 0.5 }
+                    ],
+                    bridge: [
+                        { pitch: 41, velocity: 70, duration: 0.75 },
+                        { pitch: 43, velocity: 65, duration: 0.25 },
+                        { pitch: 46, velocity: 70, duration: 0.5 }
+                    ],
+                    breakdown: [
+                        { pitch: 29, velocity: 90, duration: 2 },
+                        { pitch: 0, velocity: 0, duration: 0.5 },
+                        { pitch: 29, velocity: 85, duration: 0.5 }
                     ]
                 };
                 
-                return patterns[section] || patterns.verse;
+                let pattern = basePatterns[section] || basePatterns.verse;
+                
+                // Add variations inspired by Tool's polyrhythms and NIN's glitch aesthetics
+                return pattern.map(note => {
+                    const variation = {
+                        pitch: note.pitch,
+                        velocity: note.velocity,
+                        duration: note.duration
+                    };
+                    
+                    // Pitch variations - occasional octave jumps or dissonant intervals
+                    if (rng() < 0.15) {
+                        const pitchShifts = [-12, -7, -5, 0, 5, 7, 12];
+                        variation.pitch += pitchShifts[Math.floor(rng() * pitchShifts.length)];
+                    }
+                    
+                    // Velocity dynamics - sudden drops or spikes
+                    variation.velocity = Math.floor(
+                        note.velocity + (rng() - 0.5) * 30 + 
+                        (intensity - 5) * 5
+                    );
+                    variation.velocity = Math.max(20, Math.min(127, variation.velocity));
+                    
+                    // Duration glitches - occasional stutters or holds
+                    if (rng() < 0.1) {
+                        variation.duration = rng() < 0.5 ? 0.125 : 1.5;
+                    }
+                    
+                    // Ghost notes
+                    if (rng() < 0.05) {
+                        variation.velocity = Math.floor(variation.velocity * 0.3);
+                    }
+                    
+                    return variation;
+                });
+            }
+            
+            seededRandom(seed) {
+                return () => {
+                    seed = (seed * 9301 + 49297) % 233280;
+                    return seed / 233280;
+                };
             }
 
             getLeadPattern(section, intensity, seed = 0) {
-                const patterns = {
-                    intro: [
-                        { pitch: 60, velocity: 50, duration: 2 }
-                    ],
-                    verse: [
-                        { pitch: 63, velocity: 60, duration: 1 },
-                        { pitch: 65, velocity: 55, duration: 1 }
-                    ],
-                    chorus: [
-                        { pitch: 67, velocity: 80, duration: 0.5 },
-                        { pitch: 70, velocity: 75, duration: 0.5 },
-                        { pitch: 72, velocity: 80, duration: 1 }
-                    ]
+                const rng = this.seededRandom(seed + 1000);
+                
+                // Generate more complex, evolving patterns
+                const scaleNotes = [60, 62, 63, 65, 67, 68, 70, 72]; // C minor scale
+                const pattern = [];
+                
+                // Different pattern lengths based on section
+                const patternLengths = {
+                    intro: 1,
+                    verse: 3 + Math.floor(rng() * 2),
+                    chorus: 4 + Math.floor(rng() * 3),
+                    bridge: 5 + Math.floor(rng() * 3),
+                    breakdown: 2,
+                    outro: 1
                 };
                 
-                return patterns[section] || patterns.verse;
+                const length = patternLengths[section] || 3;
+                
+                for (let i = 0; i < length; i++) {
+                    // Choose notes from scale with occasional chromatic additions
+                    let pitch = scaleNotes[Math.floor(rng() * scaleNotes.length)];
+                    
+                    // Add chromatic passing tones occasionally
+                    if (rng() < 0.2) {
+                        pitch += Math.floor(rng() * 3) - 1;
+                    }
+                    
+                    // Octave variations
+                    if (rng() < 0.3) {
+                        pitch += rng() < 0.5 ? 12 : -12;
+                    }
+                    
+                    // Dynamic velocity based on section and randomness
+                    let velocity = 50 + intensity * 5;
+                    if (section === 'chorus' || section === 'bridge') {
+                        velocity += 20;
+                    }
+                    velocity += Math.floor((rng() - 0.5) * 40);
+                    velocity = Math.max(30, Math.min(127, velocity));
+                    
+                    // Varied durations for more interesting rhythms
+                    const durations = [0.25, 0.5, 0.75, 1, 1.5, 2];
+                    const duration = durations[Math.floor(rng() * durations.length)];
+                    
+                    // Occasional rests (silence)
+                    if (rng() < 0.1) {
+                        pattern.push({ pitch: 0, velocity: 0, duration: duration });
+                    } else {
+                        pattern.push({ pitch, velocity, duration });
+                    }
+                }
+                
+                return pattern;
             }
 
             stop() {
@@ -1393,7 +1630,13 @@
 
             generateSong() {
                 try {
-                    this.currentSeed = Date.now() + Math.random() * 10000;
+                    // Generate more unique seed using multiple entropy sources
+                    this.currentSeed = Math.floor(
+                        Date.now() * Math.random() * 1000 + 
+                        performance.now() * 1000 + 
+                        Math.random() * 1000000
+                    );
+                    
                     const sections = this.songStructure.getSections();
                     
                     if (sections.length === 0) {
@@ -1731,15 +1974,51 @@
                     this.audioEngine.currentSection = 0;
                     this.audioEngine.currentBeat = 0;
                     this.audioEngine.totalBeats = 0;
-                    this.currentSeed = Date.now() + Math.random() * 10000;
+                    
+                    // Generate truly random seed using multiple sources
+                    this.currentSeed = Math.floor(Date.now() * Math.random() * 1000 + performance.now() * 1000);
+                    console.log('New seed:', this.currentSeed);
+                    
                     document.getElementById('progressFill').style.width = '0%';
                     
-                    // Optionally change structure
-                    if (Math.random() < 0.3) {
+                    // More aggressive structure changes
+                    if (Math.random() < 0.5) {
                         const structures = ['standard', 'simple', 'extended', 'industrial'];
                         const randomStructure = structures[Math.floor(Math.random() * structures.length)];
                         this.songStructure.loadPreset(randomStructure);
                         sections = this.songStructure.getSections();
+                        
+                        // Sometimes shuffle sections for more variety
+                        if (Math.random() < 0.3) {
+                            const shuffled = [...sections];
+                            for (let i = shuffled.length - 1; i > 0; i--) {
+                                const j = Math.floor(Math.random() * (i + 1));
+                                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                            }
+                            // Keep intro/outro at beginning/end
+                            const intro = shuffled.find(s => s === 'intro');
+                            const outro = shuffled.find(s => s === 'outro');
+                            sections = shuffled.filter(s => s !== 'intro' && s !== 'outro');
+                            if (intro) sections.unshift(intro);
+                            if (outro) sections.push(outro);
+                        }
+                    }
+                    
+                    // Occasionally adjust parameters for variety
+                    if (Math.random() < 0.4) {
+                        // Slight tempo variation
+                        const tempoVariation = Math.floor((Math.random() - 0.5) * 20);
+                        const newTempo = Math.max(26, Math.min(140, this.audioEngine.currentTempo + tempoVariation));
+                        this.audioEngine.updateTempo(newTempo);
+                        document.getElementById('tempo').value = newTempo;
+                        document.getElementById('tempoValue').textContent = newTempo;
+                        
+                        // Intensity variation
+                        const intensityVariation = Math.floor((Math.random() - 0.5) * 4);
+                        const newIntensity = Math.max(1, Math.min(10, this.audioEngine.currentIntensity + intensityVariation));
+                        this.audioEngine.updateIntensity(newIntensity);
+                        document.getElementById('intensity').value = newIntensity;
+                        document.getElementById('intensityValue').textContent = newIntensity;
                     }
                     
                     // Recalculate parameters
