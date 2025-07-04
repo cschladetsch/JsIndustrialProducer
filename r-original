@@ -1,52 +1,73 @@
 #!/bin/bash
-# Launch Industrial MIDI Creator (Original Monolithic Version) with web server on port 8083
+# 🎸 INDUSTRIAL MIDI CREATOR - CLASSIC MONOLITH 🎸
 
 PORT=8083
 
-# Kill any existing process on port 8083
-echo "Checking for existing processes on port $PORT..."
-EXISTING_PID=$(lsof -ti :$PORT)
+echo "⚡ INDUSTRIAL MIDI CREATOR [ORIGINAL] ⚡"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "         THE MONOLITH AWAKENS"
+
+# Kill any weaklings on our port
+EXISTING_PID=$(lsof -ti :$PORT 2>/dev/null)
 if [ ! -z "$EXISTING_PID" ]; then
-    echo "Killing existing process $EXISTING_PID on port $PORT"
+    echo "💀 CRUSHING process $EXISTING_PID..."
     kill -9 $EXISTING_PID
-    sleep 1
+    sleep 0.5
+    echo "✓ ANNIHILATED!"
 fi
 
-# Start Python HTTP server in background
-echo "Starting web server on port $PORT..."
+# RESURRECT THE ANCIENT ONE
+echo "🗿 SUMMONING THE MONOLITHIC SERVER..."
 python3 -m http.server $PORT > /dev/null 2>&1 &
 SERVER_PID=$!
 
-# Give server time to start
-sleep 1
+# Let the ancient powers gather
+sleep 0.5
 
-# Check if server started successfully
-if ! lsof -ti :$PORT > /dev/null; then
-    echo "Failed to start server on port $PORT"
+# Verify our dominion
+if ! lsof -ti :$PORT > /dev/null 2>&1; then
+    echo "❌ THE MONOLITH REJECTS US!"
+    echo "Perhaps it requires more power..."
     exit 1
 fi
 
-echo "Server started with PID $SERVER_PID"
+echo "⚡ MONOLITH ONLINE [PID: $SERVER_PID]"
 
-# Detect OS and open browser
+# OPEN THE PORTAL
 URL="http://localhost:$PORT/index.html"
-echo "Opening $URL (original monolithic version)..."
+echo "🌀 OPENING PORTAL TO THE VOID..."
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open "$URL"
+    xdg-open "$URL" 2>/dev/null
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     open "$URL"
 elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
     start "$URL"
 else
-    echo "Unsupported OS. Please open $URL manually in your browser."
+    echo "⚠️  MANUAL SUMMONING REQUIRED: $URL"
 fi
 
 echo ""
-echo "Server running on port $PORT (PID: $SERVER_PID)"
-echo "Press Ctrl+C to stop the server"
+echo "╔═══════════════════════════════════════╗"
+echo "║   🏛️  THE MONOLITH STANDS  🏛️         ║"
+echo "║   2600+ lines of raw power!           ║"
+echo "║   Port: $PORT | PID: $SERVER_PID              ║"
+echo "║   [Ctrl+C] to BANISH                  ║"
+echo "╚═══════════════════════════════════════╝"
 echo ""
 
-# Wait for Ctrl+C
-trap "echo 'Stopping server...'; kill $SERVER_PID 2>/dev/null; exit" INT
-wait $SERVER_PID
+# Eternal vigil
+trap ctrl_c INT
+
+function ctrl_c() {
+    echo ""
+    echo "🌑 THE MONOLITH RETURNS TO SLUMBER..."
+    kill $SERVER_PID 2>/dev/null
+    echo "🗿 Until next time, mortals."
+    exit 0
+}
+
+# The monolith endures
+while true; do
+    sleep 1
+done

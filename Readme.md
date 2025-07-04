@@ -1,6 +1,15 @@
-# JsIndustrialProducer - Industrial MIDI Song Creator
+# INDUSTRIELL KLANGMASCHINE - Industrial MIDI Song Creator
 
-**Note:** For the full experience with parameter controls, song generation, and real-time playback, please download and run locally. The application is a single self-contained HTML file (index.html) that requires only the accompanying CSS file.
+**Note:** For the full experience with parameter controls, song generation, and real-time playback, please download and run locally. 
+
+## 🎸 NOW WITH MODULAR ARCHITECTURE! 🎸
+
+The application has been refactored from a monolithic 2600+ line file into a clean modular structure using ES6 modules. Choose your version:
+
+- **`./r`** - Launch the modern modular version with clean architecture
+- **`./r-original`** - Launch the classic monolithic version (2600+ lines of raw power)
+
+Both versions are fully functional with identical features.
 
 ## Demo Visual
 
@@ -147,38 +156,49 @@ JsIndustrialProducer/
 
 ## Quick Start
 
-### Running the Application
+### 🚀 Instant Launch (Recommended)
 
-1. **Clone the repository** (if you haven't already):
-   ```bash
-   git clone https://github.com/cschladetsch/JsIndustrialProducer.git
-   cd JsIndustrialProducer
-   ```
+The easiest way to run INDUSTRIELL KLANGMASCHINE:
 
-2. **Open the application** in your web browser:
-   ```bash
-   # On Linux:
-   xdg-open index.html
+```bash
+# Clone the repository
+git clone https://github.com/cschladetsch/JsIndustrialProducer.git
+cd JsIndustrialProducer
+
+# Launch modular version (clean ES6 architecture)
+./r
+
+# OR launch the original monolithic version
+./r-original
+```
+
+Both launchers will:
+- ⚡ Kill any process on port 8083
+- 🚀 Start a web server
+- 🌐 Open your browser automatically
+- 🎵 Keep running until you press Ctrl+C
+
+### Manual Launch
+
+If you prefer to open files directly:
+```bash
+# On Linux:
+xdg-open index_modular.html
    
-   # On macOS:
-   open index.html
+# On macOS:
+open index_modular.html
    
-   # On Windows:
-   start index.html
-   ```
+# On Windows:
+start index_modular.html
+```
 
-   Or simply double-click the `index.html` file in your file manager.
+### Server Mode
 
-   Or use the included launcher script (requires display):
-   ```bash
-   ./r
-   ```
-
-3. **For headless/server environments**, start a web server:
-   ```bash
-   python3 -m http.server 8080
-   ```
-   Then access the application at `http://localhost:8080` in your browser.
+For headless/server environments, start a web server:
+```bash
+python3 -m http.server 8080
+```
+Then access the application at `http://localhost:8080` in your browser.
 
 ### Using the Application
 
@@ -232,15 +252,26 @@ JsIndustrialProducer/
 │   ├── Demo3.gif                # Animated demo  
 │   ├── Song.mid                 # Example MIDI output
 │   └── output.mp3               # Example audio render
-├── index.html                    # Main application (single self-contained file)
+├── index.html                    # Original monolithic version (2600+ lines)
+├── index_modular.html            # New modular version
+├── js/                           # JavaScript modules
+│   ├── app.js                   # Main entry point
+│   └── modules/                 # ES6 modules
+│       ├── AudioEngine.js       # Core audio synthesis
+│       ├── SongStructure.js     # Drag & drop song builder
+│       ├── Visualizer.js        # FFT frequency analyzer
+│       ├── VocalSynthesizer.js  # Vocal synthesis engine
+│       ├── LyricsGenerator.js   # AI lyrics generation
+│       ├── MidiGenerator.js     # MIDI file export
+│       └── IndustrialMusicApp.js # Main application controller
 ├── css/                          # Styling
 │   └── styles.css               # Application styles
-├── industrial-midi.js            # Core music generation module
-├── test-industrial-midi.js       # Comprehensive unit tests
+├── test-midi-export.js          # MIDI export tests
 ├── LICENSE                       # MIT License
-├── Readme.md                     # This comprehensive documentation
-├── main.js                       # Legacy reference file
-└── r                            # Quick launch script (./r to open)
+├── Readme.md                     # This documentation
+├── MODULAR_STRUCTURE.md         # Detailed modular architecture docs
+├── r                            # Launch modular version on port 8083
+└── r-original                   # Launch monolithic version on port 8083
 ```
 
 ## Playing MIDI Files

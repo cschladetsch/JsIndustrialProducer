@@ -1,52 +1,71 @@
 #!/bin/bash
-# Launch Industrial MIDI Creator with web server on port 8083
+# 🎸 INDUSTRIAL MIDI CREATOR - MODULAR EDITION 🎸
 
 PORT=8083
 
-# Kill any existing process on port 8083
-echo "Checking for existing processes on port $PORT..."
-EXISTING_PID=$(lsof -ti :$PORT)
+echo "⚡ INDUSTRIAL MIDI CREATOR ⚡"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Kill any weaklings on our port
+EXISTING_PID=$(lsof -ti :$PORT 2>/dev/null)
 if [ ! -z "$EXISTING_PID" ]; then
-    echo "Killing existing process $EXISTING_PID on port $PORT"
+    echo "💀 TERMINATING process $EXISTING_PID on port $PORT..."
     kill -9 $EXISTING_PID
-    sleep 1
+    sleep 0.5
+    echo "✓ ELIMINATED!"
 fi
 
-# Start Python HTTP server in background
-echo "Starting web server on port $PORT..."
+# LAUNCH THE BEAST
+echo "🚀 INITIALIZING INDUSTRIAL SERVER..."
 python3 -m http.server $PORT > /dev/null 2>&1 &
 SERVER_PID=$!
 
-# Give server time to start
-sleep 1
+# Let it breathe
+sleep 0.5
 
-# Check if server started successfully
-if ! lsof -ti :$PORT > /dev/null; then
-    echo "Failed to start server on port $PORT"
+# Verify our dominance
+if ! lsof -ti :$PORT > /dev/null 2>&1; then
+    echo "❌ FAILED TO CONQUER PORT $PORT!"
+    echo "The machines have won this round..."
     exit 1
 fi
 
-echo "Server started with PID $SERVER_PID"
+echo "🔥 SERVER ONLINE [PID: $SERVER_PID]"
 
-# Detect OS and open browser
+# UNLEASH THE BROWSER
 URL="http://localhost:$PORT/index_modular.html"
-echo "Opening $URL..."
+echo "🌐 LAUNCHING INTO CYBERSPACE..."
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open "$URL"
+    xdg-open "$URL" 2>/dev/null
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     open "$URL"
 elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
     start "$URL"
 else
-    echo "Unsupported OS. Please open $URL manually in your browser."
+    echo "⚠️  MANUAL OVERRIDE REQUIRED: $URL"
 fi
 
 echo ""
-echo "Server running on port $PORT (PID: $SERVER_PID)"
-echo "Press Ctrl+C to stop the server"
+echo "╔═══════════════════════════════════════╗"
+echo "║  🎵 INDUSTRIAL BEATS ACTIVATED 🎵     ║"
+echo "║  Port: $PORT | PID: $SERVER_PID              ║"
+echo "║  [Ctrl+C] to DESTROY                  ║"
+echo "╚═══════════════════════════════════════╝"
 echo ""
 
-# Wait for Ctrl+C
-trap "echo 'Stopping server...'; kill $SERVER_PID 2>/dev/null; exit" INT
-wait $SERVER_PID
+# Wait for the end
+trap ctrl_c INT
+
+function ctrl_c() {
+    echo ""
+    echo "🛑 SHUTDOWN SEQUENCE INITIATED..."
+    kill $SERVER_PID 2>/dev/null
+    echo "💤 Server terminated. The silence is deafening."
+    exit 0
+}
+
+# Keep the noise going
+while true; do
+    sleep 1
+done
