@@ -34,7 +34,7 @@ fi
 echo "⚡ MONOLITH ONLINE [PID: $SERVER_PID]"
 
 # OPEN THE PORTAL
-URL="http://localhost:$PORT/index.html"
+URL="http://localhost:$PORT/index_modular.html"
 echo "🌀 OPENING PORTAL TO THE VOID..."
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -50,7 +50,7 @@ fi
 echo ""
 echo "╔═══════════════════════════════════════╗"
 echo "║   🏛️  THE MONOLITH STANDS  🏛️         ║"
-echo "║   2600+ lines of raw power!           ║"
+echo "║   Now in modular form!                ║"
 echo "║   Port: $PORT | PID: $SERVER_PID              ║"
 echo "║   [Ctrl+C] to BANISH                  ║"
 echo "╚═══════════════════════════════════════╝"

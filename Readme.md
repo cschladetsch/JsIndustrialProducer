@@ -4,12 +4,10 @@
 
 ## 🎸 NOW WITH MODULAR ARCHITECTURE! 🎸
 
-The application has been refactored from a monolithic 2600+ line file into a clean modular structure using ES6 modules. Choose your version:
+The application has been refactored from a monolithic 2600+ line file into a clean modular structure using ES6 modules.
 
-- **`./r`** - Launch the modern modular version with clean architecture
-- **`./r-original`** - Launch the classic monolithic version (2600+ lines of raw power)
-
-Both versions are fully functional with identical features.
+- **`./r`** - Launch the application (modern modular architecture)
+- **`./r-original`** - Launch the application (same modular version, nostalgic launcher)
 
 ## Demo Visual
 
@@ -124,7 +122,7 @@ The integrated lyrics generator creates thematic content inspired by industrial/
 
 ```
 JsIndustrialProducer/
-├── index.html          # Main application (self-contained)
+├── index_modular.html  # Main application (modular version)
 ├── css/
 │   └── styles.css      # Application styling
 ├── Assets/
@@ -165,10 +163,10 @@ The easiest way to run INDUSTRIELL KLANGMASCHINE:
 git clone https://github.com/cschladetsch/JsIndustrialProducer.git
 cd JsIndustrialProducer
 
-# Launch modular version (clean ES6 architecture)
+# Launch the application
 ./r
 
-# OR launch the original monolithic version
+# OR use the nostalgic launcher
 ./r-original
 ```
 
@@ -252,8 +250,7 @@ JsIndustrialProducer/
 │   ├── Demo3.gif                # Animated demo  
 │   ├── Song.mid                 # Example MIDI output
 │   └── output.mp3               # Example audio render
-├── index.html                    # Original monolithic version (2600+ lines)
-├── index_modular.html            # New modular version
+├── index_modular.html            # Main application (modular architecture)
 ├── js/                           # JavaScript modules
 │   ├── app.js                   # Main entry point
 │   └── modules/                 # ES6 modules
@@ -270,8 +267,8 @@ JsIndustrialProducer/
 ├── LICENSE                       # MIT License
 ├── Readme.md                     # This documentation
 ├── MODULAR_STRUCTURE.md         # Detailed modular architecture docs
-├── r                            # Launch modular version on port 8083
-└── r-original                   # Launch monolithic version on port 8083
+├── r                            # Launch application on port 8083
+└── r-original                   # Launch application on port 8083 (nostalgic launcher)
 ```
 
 ## Playing MIDI Files
