@@ -253,6 +253,7 @@ button:active {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
+    min-height: 40px;
 }
 
 .draggable-section {
@@ -326,9 +327,11 @@ button:active {
     pointer-events: none;
 }
 
-/* Palette drop zone visual feedback */
+/* Palette drop zone visual feedback - extend existing .palette-sections */
 .palette-sections {
     position: relative;
+    transition: background-color 0.2s, border 0.2s;
+    border: 2px solid transparent;
 }
 
 .palette-sections.drop-target {

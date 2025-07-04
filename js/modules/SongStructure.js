@@ -54,10 +54,30 @@ export class SongStructure {
         // Setup drop zones for both structure editor and palette
         this.structureEditor.addEventListener('dragover', (e) => this.handleDragOver(e, 'structure'));
         this.structureEditor.addEventListener('drop', (e) => this.handleDrop(e, 'structure'));
+        this.structureEditor.addEventListener('dragenter', (e) => {
+            if (this.dragSource) {
+                this.structureEditor.classList.add('drag-over');
+            }
+        });
+        this.structureEditor.addEventListener('dragleave', (e) => {
+            if (e.target === this.structureEditor) {
+                this.structureEditor.classList.remove('drag-over');
+            }
+        });
         
         // Make palette a drop zone too
         this.paletteContainer.addEventListener('dragover', (e) => this.handleDragOver(e, 'palette'));
         this.paletteContainer.addEventListener('drop', (e) => this.handleDrop(e, 'palette'));
+        this.paletteContainer.addEventListener('dragenter', (e) => {
+            if (this.dragSource === 'structure') {
+                this.paletteContainer.classList.add('drop-target');
+            }
+        });
+        this.paletteContainer.addEventListener('dragleave', (e) => {
+            if (e.target === this.paletteContainer) {
+                this.paletteContainer.classList.remove('drop-target');
+            }
+        });
         
         // Setup preset buttons
         document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -102,12 +122,21 @@ export class SongStructure {
         if (paletteDropIndicator) {
             paletteDropIndicator.remove();
         }
+        
+        // Remove drop target classes
+        this.paletteContainer.classList.remove('drop-target');
+        this.structureEditor.classList.remove('drag-over');
+        
+        // Reset drag source
+        this.dragSource = null;
+        this.draggedElement = null;
     }
 
     handleDragOver(e, dropZone) {
         e.preventDefault();
         
-        const sourceType = e.dataTransfer.getData('source') || this.dragSource;
+        // Use instance variable since dataTransfer.getData is not allowed during dragover
+        const sourceType = this.dragSource;
         
         // Set drop effect based on source and destination
         if (dropZone === 'palette' && sourceType === 'structure') {
@@ -197,6 +226,10 @@ export class SongStructure {
         if (paletteDropIndicator) {
             paletteDropIndicator.remove();
         }
+        
+        // Clean up drop target classes
+        this.paletteContainer.classList.remove('drop-target');
+        this.structureEditor.classList.remove('drag-over');
     }
 
     getDragAfterElement(container, x) {
