@@ -36,21 +36,28 @@ export class SongStructure {
         
         this.draggedElement = null;
         this.dropIndicator = null;
+        this.dragMode = 'copy'; // 'copy' or 'move'
+        this.dragSource = null; // 'palette' or 'structure'
     }
 
     initialize() {
         this.structureEditor = document.getElementById('structureEditor');
         this.dropIndicator = document.getElementById('dropIndicator');
+        this.paletteContainer = document.getElementById('sectionPalette');
         
         // Initialize drag and drop for palette sections
         document.querySelectorAll('.draggable-section').forEach(element => {
-            element.addEventListener('dragstart', this.handleDragStart.bind(this));
+            element.addEventListener('dragstart', (e) => this.handleDragStart(e, 'palette'));
             element.addEventListener('dragend', this.handleDragEnd.bind(this));
         });
         
-        // Setup drop zone
-        this.structureEditor.addEventListener('dragover', this.handleDragOver.bind(this));
-        this.structureEditor.addEventListener('drop', this.handleDrop.bind(this));
+        // Setup drop zones for both structure editor and palette
+        this.structureEditor.addEventListener('dragover', (e) => this.handleDragOver(e, 'structure'));
+        this.structureEditor.addEventListener('drop', (e) => this.handleDrop(e, 'structure'));
+        
+        // Make palette a drop zone too
+        this.paletteContainer.addEventListener('dragover', (e) => this.handleDragOver(e, 'palette'));
+        this.paletteContainer.addEventListener('drop', (e) => this.handleDrop(e, 'palette'));
         
         // Setup preset buttons
         document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -64,23 +71,58 @@ export class SongStructure {
         this.loadPreset('standard');
     }
 
-    handleDragStart(e) {
+    handleDragStart(e, source) {
         this.draggedElement = e.target;
+        this.dragSource = source;
         e.target.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData('text/plain', e.target.dataset.section);
+        
+        // Get section name from either dataset or text content
+        const sectionName = e.target.dataset.section || 
+                          e.target.textContent.toLowerCase().replace('×', '').trim();
+        
+        e.dataTransfer.effectAllowed = source === 'palette' ? 'copy' : 'move';
+        e.dataTransfer.setData('text/plain', sectionName);
+        e.dataTransfer.setData('source', source);
+        
+        // Store if this is a move operation (from structure)
+        if (source === 'structure') {
+            e.dataTransfer.setData('elementId', Date.now().toString());
+            e.target.dataset.elementId = Date.now().toString();
+        }
     }
 
     handleDragEnd(e) {
         e.target.classList.remove('dragging');
-        this.dropIndicator.style.display = 'none';
+        if (this.dropIndicator) {
+            this.dropIndicator.style.display = 'none';
+        }
+        
+        // Clean up palette drop indicator if exists
+        const paletteDropIndicator = this.paletteContainer.querySelector('.palette-drop-indicator');
+        if (paletteDropIndicator) {
+            paletteDropIndicator.remove();
+        }
     }
 
-    handleDragOver(e) {
+    handleDragOver(e, dropZone) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
         
-        const afterElement = this.getDragAfterElement(e.clientX);
+        const sourceType = e.dataTransfer.getData('source') || this.dragSource;
+        
+        // Set drop effect based on source and destination
+        if (dropZone === 'palette' && sourceType === 'structure') {
+            // Moving from structure back to palette means removing from structure
+            e.dataTransfer.dropEffect = 'move';
+            this.showPaletteDropIndicator(e);
+        } else if (dropZone === 'structure') {
+            // Copy from palette or move within structure
+            e.dataTransfer.dropEffect = sourceType === 'palette' ? 'copy' : 'move';
+            this.showStructureDropIndicator(e);
+        }
+    }
+
+    showStructureDropIndicator(e) {
+        const afterElement = this.getDragAfterElement(this.structureEditor, e.clientX);
         if (afterElement == null) {
             this.dropIndicator.style.left = (this.structureEditor.offsetWidth - 2) + 'px';
         } else {
@@ -89,18 +131,76 @@ export class SongStructure {
         this.dropIndicator.style.display = 'block';
     }
 
-    handleDrop(e) {
-        e.preventDefault();
-        const section = e.dataTransfer.getData('text/plain');
-        const afterElement = this.getDragAfterElement(e.clientX);
-        
-        this.addSection(section, afterElement);
-        this.dropIndicator.style.display = 'none';
-        this.updateInfo();
+    showPaletteDropIndicator(e) {
+        // Visual feedback for dropping back to palette
+        let indicator = this.paletteContainer.querySelector('.palette-drop-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'palette-drop-indicator';
+            indicator.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                border: 2px dashed #4ecdc4;
+                pointer-events: none;
+                z-index: 10;
+            `;
+            this.paletteContainer.style.position = 'relative';
+            this.paletteContainer.appendChild(indicator);
+        }
     }
 
-    getDragAfterElement(x) {
-        const draggableElements = [...this.structureEditor.querySelectorAll('.section-block:not(.dragging)')];
+    handleDrop(e, dropZone) {
+        e.preventDefault();
+        
+        const section = e.dataTransfer.getData('text/plain');
+        const source = e.dataTransfer.getData('source') || this.dragSource;
+        const elementId = e.dataTransfer.getData('elementId');
+        
+        if (dropZone === 'palette' && source === 'structure') {
+            // Remove from structure (return to palette)
+            if (elementId) {
+                const element = this.structureEditor.querySelector(`[data-element-id="${elementId}"]`);
+                if (element) {
+                    element.remove();
+                }
+            } else if (this.draggedElement && this.draggedElement.parentElement === this.structureEditor) {
+                this.draggedElement.remove();
+            }
+            
+            this.updateSections();
+            this.updateInfo();
+        } else if (dropZone === 'structure') {
+            if (source === 'palette') {
+                // Copy from palette to structure
+                const afterElement = this.getDragAfterElement(this.structureEditor, e.clientX);
+                this.addSection(section, afterElement);
+            } else if (source === 'structure') {
+                // Move within structure (reorder)
+                const afterElement = this.getDragAfterElement(this.structureEditor, e.clientX);
+                if (this.draggedElement && this.draggedElement !== afterElement) {
+                    if (afterElement) {
+                        afterElement.insertAdjacentElement('afterend', this.draggedElement);
+                    } else {
+                        this.structureEditor.insertBefore(this.draggedElement, this.dropIndicator);
+                    }
+                    this.updateSections();
+                    this.updateInfo();
+                }
+            }
+        }
+        
+        this.dropIndicator.style.display = 'none';
+        const paletteDropIndicator = this.paletteContainer.querySelector('.palette-drop-indicator');
+        if (paletteDropIndicator) {
+            paletteDropIndicator.remove();
+        }
+    }
+
+    getDragAfterElement(container, x) {
+        const draggableElements = [...container.querySelectorAll('.section-block:not(.dragging)')];
         
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
@@ -119,6 +219,7 @@ export class SongStructure {
         newSection.className = `section-block ${section}`;
         newSection.textContent = section.toUpperCase();
         newSection.draggable = true;
+        newSection.dataset.section = section;
         
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-btn';
@@ -142,10 +243,12 @@ export class SongStructure {
             }
         }
         
-        newSection.addEventListener('dragstart', this.handleDragStart.bind(this));
+        // Make the new section draggable within structure
+        newSection.addEventListener('dragstart', (e) => this.handleDragStart(e, 'structure'));
         newSection.addEventListener('dragend', this.handleDragEnd.bind(this));
         
         this.updateSections();
+        this.updateInfo();
     }
 
     loadPreset(preset) {

@@ -326,6 +326,21 @@ button:active {
     pointer-events: none;
 }
 
+/* Palette drop zone visual feedback */
+.palette-sections {
+    position: relative;
+}
+
+.palette-sections.drop-target {
+    background-color: rgba(78, 205, 196, 0.1);
+    border-color: #4ecdc4;
+}
+
+.section-block.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
 .structure-info {
     color: #888;
     font-size: 11px;
