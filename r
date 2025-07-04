@@ -1,13 +1,52 @@
 #!/bin/bash
-# Launch Industrial MIDI Creator
+# Launch Industrial MIDI Creator with web server on port 8083
 
-# Detect OS and use appropriate command
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open index.html
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    open index.html
-elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
-    start index.html
-else
-    echo "Unsupported OS. Please open index.html manually in your browser."
+PORT=8083
+
+# Kill any existing process on port 8083
+echo "Checking for existing processes on port $PORT..."
+EXISTING_PID=$(lsof -ti :$PORT)
+if [ ! -z "$EXISTING_PID" ]; then
+    echo "Killing existing process $EXISTING_PID on port $PORT"
+    kill -9 $EXISTING_PID
+    sleep 1
 fi
+
+# Start Python HTTP server in background
+echo "Starting web server on port $PORT..."
+python3 -m http.server $PORT > /dev/null 2>&1 &
+SERVER_PID=$!
+
+# Give server time to start
+sleep 1
+
+# Check if server started successfully
+if ! lsof -ti :$PORT > /dev/null; then
+    echo "Failed to start server on port $PORT"
+    exit 1
+fi
+
+echo "Server started with PID $SERVER_PID"
+
+# Detect OS and open browser
+URL="http://localhost:$PORT/index_modular.html"
+echo "Opening $URL..."
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    xdg-open "$URL"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    open "$URL"
+elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+    start "$URL"
+else
+    echo "Unsupported OS. Please open $URL manually in your browser."
+fi
+
+echo ""
+echo "Server running on port $PORT (PID: $SERVER_PID)"
+echo "Press Ctrl+C to stop the server"
+echo ""
+
+# Wait for Ctrl+C
+trap "echo 'Stopping server...'; kill $SERVER_PID 2>/dev/null; exit" INT
+wait $SERVER_PID

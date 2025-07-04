@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christian's Song Creator</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Ping Donger</h1>
+        
+        <div class="song-structure">
+            <h3>Song Structure</h3>
+            
+            <div class="preset-buttons">
+                <button class="preset-btn" data-preset="standard">Standard</button>
+                <button class="preset-btn" data-preset="simple">Simple</button>
+                <button class="preset-btn" data-preset="extended">Extended</button>
+                <button class="preset-btn" data-preset="industrial">Industrial</button>
+            </div>
+            
+            <div class="section-palette">
+                <h4>Available Sections (drag to add):</h4>
+                <div class="palette-sections" id="sectionPalette">
+                    <div class="section-block intro draggable-section" draggable="true" data-section="intro">INTRO</div>
+                    <div class="section-block verse draggable-section" draggable="true" data-section="verse">VERSE</div>
+                    <div class="section-block pre-chorus draggable-section" draggable="true" data-section="pre-chorus">PRE-CHORUS</div>
+                    <div class="section-block chorus draggable-section" draggable="true" data-section="chorus">CHORUS</div>
+                    <div class="section-block bridge draggable-section" draggable="true" data-section="bridge">BRIDGE</div>
+                    <div class="section-block instrumental draggable-section" draggable="true" data-section="instrumental">INSTRUMENTAL</div>
+                    <div class="section-block breakdown draggable-section" draggable="true" data-section="breakdown">BREAKDOWN</div>
+                    <div class="section-block outro draggable-section" draggable="true" data-section="outro">OUTRO</div>
+                </div>
+            </div>
+            
+            <div class="structure-editor" id="structureEditor">
+                <div class="drop-indicator" id="dropIndicator"></div>
+            </div>
+            
+            <div class="structure-info" id="structureInfo">Drag sections from above or click a preset to start</div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="tempo">Tempo (BPM):</label>
+                <input type="range" id="tempo" min="16" max="240" value="70">
+                <span class="value" id="tempoValue">70</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="intensity">Intensity:</label>
+                <input type="range" id="intensity" min="1" max="10" value="7">
+                <span class="value" id="intensityValue">7</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="distortion">Distortion:</label>
+                <input type="range" id="distortion" min="0" max="100" value="60">
+                <span class="value" id="distortionValue">60</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="songLength">Song Length:</label>
+                <input type="range" id="songLength" min="0.5" max="2" step="0.1" value="1">
+                <span class="value" id="songLengthValue">1.0x (~5 min)</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="vocals">Vocals:</label>
+                <div class="custom-select">
+                    <div class="select-selected" id="vocalDisplay">Whisper</div>
+                    <div class="select-items select-hide" id="vocalOptions">
+                        <div data-value="off">Off</div>
+                        <div data-value="robotic">Robotic</div>
+                        <div data-value="whisper">Whisper</div>
+                        <div data-value="distorted">Distorted</div>
+                    </div>
+                </div>
+                <input type="hidden" id="vocals" value="whisper">
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="generateBtn">Generate Song</button>
+            <button id="playBtn">Play Full Song</button>
+            <button id="loopBtn">Continuous music</button>
+            <button id="stopBtn">Stop</button>
+            <button id="downloadBtn" style="display: none;">Download MIDI</button>
+        </div>
+        
+        <div id="status"></div>
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="analyzer-container" id="analyzerContainer" style="display: none;">
+            <h3>Frequency Analyzer</h3>
+            <canvas id="analyzerCanvas"></canvas>
+            <div class="frequency-labels">
+                <span>20Hz</span>
+                <span>100Hz</span>
+                <span>500Hz</span>
+                <span>1kHz</span>
+                <span>5kHz</span>
+                <span>10kHz</span>
+                <span>20kHz</span>
+            </div>
+            <div class="section-progress-container">
+                <span id="currentSectionLabel" style="min-width: 150px;">Section: -</span>
+                <div class="section-progress-slider">
+                    <div class="section-progress-fill" id="sectionProgressFill"></div>
+                </div>
+            </div>
+            <div class="analyzer-info">
+                <span id="sectionProgressLabel">Progress: 0%</span>
+                <span id="currentTimeLabel">Time: 0:00 / 0:00</span>
+            </div>
+            <div class="analyzer-controls">
+                <button class="analyzer-btn active" id="barsBtn" data-mode="bars">Bars</button>
+                <button class="analyzer-btn" id="waveBtn" data-mode="wave">Waveform</button>
+                <button class="analyzer-btn" id="circleBtn" data-mode="circle">Circle</button>
+            </div>
+        </div>
+        
+        <div class="lyrics-container" id="lyricsContainer" style="display: none;">
+            <h3>
+                <span>Generated Lyrics</span>
+                <button class="lyrics-btn" id="copyLyricsBtn">Copy</button>
+            </h3>
+            <div class="lyrics-display" id="lyricsDisplay">
+                <div class="lyrics-line">Click "Generate Song" to create lyrics...</div>
+            </div>
+            <div class="lyrics-controls">
+                <button class="lyrics-btn" id="regenerateLyricsBtn">Regenerate</button>
+                <button class="lyrics-btn" id="exportLyricsBtn">Export .txt</button>
+            </div>
+        </div>
+        
+        <div class="vocal-output-container" id="vocalOutputContainer" style="display: none;">
+            <h3>Vocal Output</h3>
+            <div class="vocal-output-display" id="vocalOutputDisplay">
+                <div class="section-state" id="sectionState">INTRO</div>
+                <span class="vocal-text" id="vocalText">...</span>
+            </div>
+            <div class="vocal-info">
+                <div class="vocal-info-item">
+                    <span class="vocal-label">Type:</span>
+                    <span id="vocalTypeDisplay">-</span>
+                </div>
+                <div class="vocal-info-item">
+                    <span class="vocal-label">Beat:</span>
+                    <span id="vocalBeatDisplay">0</span>
+                </div>
+                <div class="vocal-info-item">
+                    <span class="vocal-label">Next vocal:</span>
+                    <span id="nextVocalDisplay">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
