@@ -278,7 +278,7 @@ export class IndustrialMusicApp {
                         this.handleLoop(sections);
                         return;
                     } else {
-                        console.log(`Song finished: ${this.audioEngine.totalBeats} beats played`);
+                        console.log(`Song finished: ${this.audioEngine.totalBeats} beats played, ${sections.length} sections completed`);
                         this.stop();
                         return;
                     }
@@ -384,6 +384,7 @@ export class IndustrialMusicApp {
         });
         
         console.log(`Final song: ${this.maxBeats} beats, ${Math.round(this.totalSongDuration/60)}min ${Math.round(this.totalSongDuration%60)}sec (requested: ${requestedMinutes}min)`);
+        console.log(`Sections: ${sections.length} total, adjustment factor: ${this.songLengthAdjustmentFactor.toFixed(2)}`);
         this.audioEngine.totalSongDuration = this.totalSongDuration;
         this.audioEngine.startTime = this.audioEngine.audioContext.currentTime;
     }
@@ -439,6 +440,7 @@ export class IndustrialMusicApp {
         const sectionBeats = baseBars * beatsPerBar;
         
         if (this.audioEngine.currentBeat >= sectionBeats) {
+            console.log(`Section ${this.audioEngine.currentSection} (${section}) completed: ${this.audioEngine.currentBeat}/${sectionBeats} beats, moving to section ${this.audioEngine.currentSection + 1}`);
             this.audioEngine.currentBeat = 0;
             this.audioEngine.currentSection++;
         }

@@ -40,14 +40,14 @@ export class SongStructure {
         
         // Tool-specific longer sections for epic songs
         this.toolBarsPerSection = {
-            intro: 24,        // Longer atmospheric builds
-            verse: 48,        // Extended verses like Schism
-            'pre-chorus': 24,  // More buildup
-            chorus: 40,       // Powerful but extended
-            bridge: 32,       // Complex bridge sections
-            breakdown: 24,    // Danny Carey showcase
-            instrumental: 64, // Epic instrumentals like Reflection
-            outro: 32         // Extended fade-outs
+            intro: 32,        // Long atmospheric builds like Fear Inoculum
+            verse: 40,        // Extended verses like Schism/Lateralus
+            'pre-chorus': 24,  // Substantial buildup
+            chorus: 32,       // Powerful and expansive
+            bridge: 48,       // Complex transitional sections
+            breakdown: 32,    // Danny Carey drum showcases
+            instrumental: 56, // Epic solos like Reflection/Disposition
+            outro: 40         // Extended fade-outs like Right in Two
         };
         
         this.draggedElement = null;
