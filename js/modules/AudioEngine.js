@@ -19,13 +19,40 @@ export class AudioEngine {
 
     async initialize() {
         try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            this.initializeAnalyzer();
+            // Don't create AudioContext yet - wait for user interaction
             return true;
         } catch (error) {
             console.error('Failed to initialize audio context:', error);
             return false;
         }
+    }
+
+    async ensureAudioContext() {
+        if (!this.audioContext) {
+            try {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Resume context if it's suspended (required for user gesture)
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+                
+                this.initializeAnalyzer();
+                return true;
+            } catch (error) {
+                console.error('Failed to create audio context:', error);
+                return false;
+            }
+        } else if (this.audioContext.state === 'suspended') {
+            try {
+                await this.audioContext.resume();
+                return true;
+            } catch (error) {
+                console.error('Failed to resume audio context:', error);
+                return false;
+            }
+        }
+        return true;
     }
 
     initializeAnalyzer() {
@@ -61,8 +88,9 @@ export class AudioEngine {
         this.currentDistortion = value;
     }
 
-    playSection(section, beat, intensity, distortion, sectionIndex, seed) {
-        if (!this.audioContext || !this.masterGain) return;
+    async playSection(section, beat, intensity, distortion, sectionIndex, seed) {
+        const contextReady = await this.ensureAudioContext();
+        if (!contextReady || !this.audioContext || !this.masterGain) return;
         
         // Limit concurrent oscillators to prevent audio issues
         if (this.activeOscillators.length > 50) {

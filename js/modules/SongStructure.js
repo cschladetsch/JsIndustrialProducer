@@ -9,7 +9,11 @@ export class SongStructure {
                       'verse', 'pre-chorus', 'chorus', 'chorus', 'bridge', 'breakdown',
                       'chorus', 'chorus', 'outro', 'outro'],
             industrial: ['intro', 'breakdown', 'verse', 'breakdown', 'chorus', 'instrumental',
-                        'breakdown', 'verse', 'breakdown', 'chorus', 'bridge', 'breakdown', 'outro']
+                        'breakdown', 'verse', 'breakdown', 'chorus', 'bridge', 'breakdown', 'outro'],
+            tool: ['intro', 'intro', 'instrumental', 'verse', 'verse', 'instrumental', 'verse', 
+                   'pre-chorus', 'chorus', 'instrumental', 'instrumental', 'verse', 'bridge', 
+                   'instrumental', 'bridge', 'breakdown', 'instrumental', 'chorus', 'bridge',
+                   'breakdown', 'instrumental', 'instrumental', 'chorus', 'outro', 'outro', 'outro']
         };
         
         this.timeSignatures = {
@@ -24,14 +28,26 @@ export class SongStructure {
         };
         
         this.barsPerSection = {
-            intro: 8,
-            verse: 16,
-            'pre-chorus': 8,
-            chorus: 16,
-            bridge: 12,
-            breakdown: 8,
-            instrumental: 8,
-            outro: 8
+            intro: 16,
+            verse: 32,
+            'pre-chorus': 16,
+            chorus: 32,
+            bridge: 24,
+            breakdown: 16,
+            instrumental: 32,
+            outro: 16
+        };
+        
+        // Tool-specific longer sections for epic songs
+        this.toolBarsPerSection = {
+            intro: 24,        // Longer atmospheric builds
+            verse: 48,        // Extended verses like Schism
+            'pre-chorus': 24,  // More buildup
+            chorus: 40,       // Powerful but extended
+            bridge: 32,       // Complex bridge sections
+            breakdown: 24,    // Danny Carey showcase
+            instrumental: 64, // Epic instrumentals like Reflection
+            outro: 32         // Extended fade-outs
         };
         
         this.draggedElement = null;
@@ -321,8 +337,63 @@ export class SongStructure {
             { numerator: 5, denominator: 4 },
             { numerator: 7, denominator: 8 },
             { numerator: 9, denominator: 8 },
-            { numerator: 6, denominator: 8 }
+            { numerator: 6, denominator: 8 },
+            { numerator: 7, denominator: 4 },
+            { numerator: 9, denominator: 4 },
+            { numerator: 11, denominator: 8 },
+            { numerator: 13, denominator: 8 },
+            { numerator: 15, denominator: 16 }
         ];
         return signatures[Math.floor(Math.random() * signatures.length)];
+    }
+    
+    getToolTimeSignature(section, sectionIndex) {
+        // Tool-style complex progressions based on actual Tool songs
+        const toolSignatures = {
+            intro: [
+                { numerator: 7, denominator: 4 },  // Schism intro
+                { numerator: 9, denominator: 8 },  // Forty Six & 2 style
+                { numerator: 4, denominator: 4 }   // Standard resolution
+            ],
+            verse: [
+                { numerator: 9, denominator: 8 },  // Schism verse
+                { numerator: 7, denominator: 4 },  // Lateralus style
+                { numerator: 5, denominator: 4 },  // The Pot style
+                { numerator: 11, denominator: 8 }, // Rosetta Stoned complexity
+                { numerator: 4, denominator: 4 }   // Grounding beat
+            ],
+            chorus: [
+                { numerator: 4, denominator: 4 },  // Usually more stable
+                { numerator: 7, denominator: 4 },  // But with Tool twists
+                { numerator: 6, denominator: 8 }   // Triplet feel
+            ],
+            bridge: [
+                { numerator: 13, denominator: 8 }, // Maximum complexity
+                { numerator: 7, denominator: 4 },  // Tool signature
+                { numerator: 9, denominator: 4 },  // Extended measures
+                { numerator: 5, denominator: 4 }   // Odd resolution
+            ],
+            breakdown: [
+                { numerator: 7, denominator: 8 },  // Breakdown complexity
+                { numerator: 11, denominator: 8 }, // Polyrhythmic madness
+                { numerator: 15, denominator: 16 }, // Ultra-complex
+                { numerator: 3, denominator: 4 }   // Unexpected simplicity
+            ],
+            instrumental: [
+                { numerator: 7, denominator: 4 },  // Classic Tool instrumental
+                { numerator: 9, denominator: 8 },  // Polyrhythmic
+                { numerator: 11, denominator: 4 }, // Extended measures
+                { numerator: 5, denominator: 4 },  // Odd time
+                { numerator: 13, denominator: 8 }  // Danny Carey special
+            ],
+            outro: [
+                { numerator: 7, denominator: 4 },  // Fade with complexity
+                { numerator: 4, denominator: 4 },  // Resolution
+                { numerator: 5, denominator: 4 }   // Final twist
+            ]
+        };
+        
+        const sectionSigs = toolSignatures[section] || toolSignatures.verse;
+        return sectionSigs[sectionIndex % sectionSigs.length];
     }
 }

@@ -20,6 +20,7 @@ export class IndustrialMusicApp {
         this.isPaused = false;
         this.sectionTimeSignatures = [];
         this.totalSongDuration = 0;
+        this.songLengthAdjustmentFactor = 1;
         
         // For continuous mode
         this.maxBeats = 0;
@@ -28,12 +29,7 @@ export class IndustrialMusicApp {
 
     async initialize() {
         try {
-            // Initialize audio engine
-            const audioInitialized = await this.audioEngine.initialize();
-            if (!audioInitialized) {
-                this.showStatus('Error: Web Audio API not supported');
-                return false;
-            }
+            // Skip audio initialization - will be done on first user interaction
             
             // Initialize components
             this.songStructure.initialize();
@@ -178,13 +174,17 @@ export class IndustrialMusicApp {
             }
             
             // Generate MIDI data
+            const currentPreset = this.getCurrentPreset();
             this.midiData = this.midiGen.generate(
                 sections,
                 this.audioEngine.currentTempo,
                 this.audioEngine.currentIntensity,
                 this.audioEngine.currentDistortion,
-                this.currentSeed
+                this.currentSeed,
+                currentPreset
             );
+            
+            console.log('Generated MIDI data:', this.midiData ? `${this.midiData.length} bytes` : 'null');
             
             // Generate lyrics
             const lyrics = this.lyricsGen.generate(sections, this.currentSeed);
@@ -233,9 +233,11 @@ export class IndustrialMusicApp {
             return;
         }
         
-        // Initialize audio if needed
-        if (!this.audioEngine.audioContext) {
-            await this.audioEngine.initialize();
+        // Initialize audio context with user gesture
+        const audioReady = await this.audioEngine.ensureAudioContext();
+        if (!audioReady) {
+            this.showStatus('Error: Could not initialize audio. Please try again.');
+            return;
         }
         
         // Start visualizer
@@ -294,7 +296,7 @@ export class IndustrialMusicApp {
                 
                 // Schedule next beat
                 const beatDuration = 60 / this.audioEngine.currentTempo;
-                const nextBeatTime = beatDuration * 250; // Quarter note in milliseconds
+                const nextBeatTime = beatDuration * 1000; // Beat duration in milliseconds
                 this.audioEngine.playbackInterval = setTimeout(this.scheduleNextBeat, nextBeatTime);
             } catch (error) {
                 console.error('Error in scheduleNextBeat:', error);
@@ -309,33 +311,79 @@ export class IndustrialMusicApp {
 
     calculateSongParameters(sections) {
         const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+        const requestedMinutes = Math.round(5 * songLengthMultiplier); // User's requested duration
+        const requestedSeconds = requestedMinutes * 60;
+        
         this.maxBeats = 0;
         this.totalSongDuration = 0;
         
-        // Generate time signatures
+        // Generate time signatures  
+        const currentPreset = this.getCurrentPreset();
         this.sectionTimeSignatures = sections.map((section, index) => {
             let timeSig = this.songStructure.timeSignatures[section] || { numerator: 4, denominator: 4 };
-            if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
+            
+            if (currentPreset === 'tool') {
+                // Use Tool-specific complex time signatures
+                timeSig = this.songStructure.getToolTimeSignature(section, index);
+            } else if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
                 timeSig = this.songStructure.getRandomTimeSignature();
             }
             return timeSig;
         });
         
-        // Calculate total beats and duration
+        // Calculate initial duration with base multiplier
+        let initialDuration = 0;
         sections.forEach((section, index) => {
-            const baseBars = this.songStructure.barsPerSection[section] || 8;
+            let baseBars;
+            if (currentPreset === 'tool') {
+                baseBars = this.songStructure.toolBarsPerSection[section] || this.songStructure.barsPerSection[section] || 8;
+                // Force slower tempo for Tool mode
+                if (this.audioEngine.currentTempo > 80) {
+                    const toolTempo = Math.max(45, Math.min(80, this.audioEngine.currentTempo - 20));
+                    this.audioEngine.updateTempo(toolTempo);
+                    document.getElementById('tempo').value = toolTempo;
+                    document.getElementById('tempoValue').textContent = toolTempo;
+                }
+            } else {
+                baseBars = this.songStructure.barsPerSection[section] || 8;
+            }
             const bars = Math.round(baseBars * songLengthMultiplier);
+            const timeSig = this.sectionTimeSignatures[index];
+            const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
+            const sectionBeats = bars * beatsPerBar;
+            
+            const beatDuration = 60 / this.audioEngine.currentTempo;
+            const sectionDuration = sectionBeats * beatDuration;
+            initialDuration += sectionDuration;
+        });
+        
+        // If the song is shorter than requested, extend sections proportionally
+        this.songLengthAdjustmentFactor = 1;
+        if (initialDuration < requestedSeconds) {
+            this.songLengthAdjustmentFactor = requestedSeconds / initialDuration;
+            console.log(`Song too short (${Math.round(initialDuration/60)}min), extending by ${this.songLengthAdjustmentFactor.toFixed(2)}x to meet ${requestedMinutes}min request`);
+        }
+        
+        // Calculate final duration with adjustment
+        sections.forEach((section, index) => {
+            let baseBars;
+            if (currentPreset === 'tool') {
+                baseBars = this.songStructure.toolBarsPerSection[section] || this.songStructure.barsPerSection[section] || 8;
+            } else {
+                baseBars = this.songStructure.barsPerSection[section] || 8;
+            }
+            const bars = Math.round(baseBars * songLengthMultiplier * this.songLengthAdjustmentFactor);
             const timeSig = this.sectionTimeSignatures[index];
             const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
             const sectionBeats = bars * beatsPerBar;
             this.maxBeats += sectionBeats;
             
             const beatDuration = 60 / this.audioEngine.currentTempo;
-            const sectionDuration = sectionBeats * beatDuration * 0.25; // Quarter note duration
+            const sectionDuration = sectionBeats * beatDuration;
             this.totalSongDuration += sectionDuration;
         });
         
-        console.log(`Song parameters: ${this.maxBeats} beats, ${this.totalSongDuration} seconds`);
+        console.log(`Final song: ${this.maxBeats} beats, ${Math.round(this.totalSongDuration/60)}min ${Math.round(this.totalSongDuration%60)}sec (requested: ${requestedMinutes}min)`);
         this.audioEngine.totalSongDuration = this.totalSongDuration;
         this.audioEngine.startTime = this.audioEngine.audioContext.currentTime;
     }
@@ -355,10 +403,10 @@ export class IndustrialMusicApp {
         timingOffset += humanError;
         
         // Play audio
-        setTimeout(() => {
+        setTimeout(async () => {
             const skipProbability = section === 'breakdown' ? 0.1 : 0.05;
             if (Math.random() > skipProbability) {
-                this.audioEngine.playSection(
+                await this.audioEngine.playSection(
                     section,
                     this.audioEngine.currentBeat,
                     this.audioEngine.currentIntensity,
@@ -385,11 +433,10 @@ export class IndustrialMusicApp {
         this.checkVocals(section);
         
         // Check section end
-        const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
-        const baseBars = this.songStructure.barsPerSection[section] || 8;
+        const baseBars = this.getAdjustedBars(section);
         const timeSig = this.sectionTimeSignatures[this.audioEngine.currentSection];
         const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
-        const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+        const sectionBeats = baseBars * beatsPerBar;
         
         if (this.audioEngine.currentBeat >= sectionBeats) {
             this.audioEngine.currentBeat = 0;
@@ -404,11 +451,10 @@ export class IndustrialMusicApp {
         
         // Calculate beats for completed sections
         for (let i = 0; i < this.audioEngine.currentSection; i++) {
-            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
-            const baseBars = this.songStructure.barsPerSection[sections[i]] || 8;
+            const baseBars = this.getAdjustedBars(sections[i]);
             const timeSig = this.sectionTimeSignatures[i];
             const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
-            completedBeats += Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+            completedBeats += baseBars * beatsPerBar;
         }
         
         // Add current section progress
@@ -416,11 +462,10 @@ export class IndustrialMusicApp {
         
         // Calculate total beats for all sections
         sections.forEach((sec, idx) => {
-            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
-            const baseBars = this.songStructure.barsPerSection[sec] || 8;
+            const baseBars = this.getAdjustedBars(sec);
             const timeSig = this.sectionTimeSignatures[idx];
             const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
-            totalBeats += Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+            totalBeats += baseBars * beatsPerBar;
         });
         
         const progress = totalBeats > 0 ? (completedBeats / totalBeats) * 100 : 0;
@@ -450,11 +495,10 @@ export class IndustrialMusicApp {
             document.getElementById('vocalBeatDisplay').textContent = this.audioEngine.currentBeat;
             
             // Update section progress
-            const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
-            const baseBars = this.songStructure.barsPerSection[section] || 8;
+            const baseBars = this.getAdjustedBars(section);
             const timeSig = this.sectionTimeSignatures[this.audioEngine.currentSection] || { numerator: 4, denominator: 4 };
             const beatsPerBar = timeSig.numerator / (timeSig.denominator / 4);
-            const sectionBeats = Math.round(baseBars * songLengthMultiplier) * beatsPerBar;
+            const sectionBeats = baseBars * beatsPerBar;
             const sectionProgress = (this.audioEngine.currentBeat / sectionBeats) * 100;
             
             document.getElementById('sectionProgressFill').style.width = sectionProgress + '%';
@@ -672,17 +716,47 @@ export class IndustrialMusicApp {
     }
 
     downloadMidi() {
-        if (!this.midiData) return;
+        console.log('Download MIDI clicked, midiData:', this.midiData);
         
-        const blob = new Blob([this.midiData], { type: 'audio/midi' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'industrial_song.mid';
-        a.click();
-        URL.revokeObjectURL(url);
+        if (!this.midiData) {
+            this.showStatus('No MIDI data to download. Generate a song first.');
+            return;
+        }
         
-        this.showStatus('MIDI file downloaded!');
+        try {
+            console.log('Creating blob with MIDI data size:', this.midiData.length);
+            
+            // Use correct MIDI MIME type
+            const blob = new Blob([this.midiData], { type: 'audio/midi' });
+            const url = URL.createObjectURL(blob);
+            
+            console.log('Created blob URL:', url);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'industrial_song.mid';
+            a.style.display = 'none';
+            
+            // Add to DOM temporarily for some browsers
+            document.body.appendChild(a);
+            
+            console.log('Triggering download...');
+            
+            // Trigger download
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            this.showStatus('MIDI file downloaded!');
+        } catch (error) {
+            console.error('Download error:', error);
+            this.showStatus('Error downloading MIDI file: ' + error.message);
+        }
     }
 
     regenerateLyrics() {
@@ -717,6 +791,36 @@ export class IndustrialMusicApp {
 
     displayLyrics(lyrics) {
         this.lyricsGen.display(lyrics);
+    }
+
+    getCurrentPreset() {
+        // Determine current preset by analyzing the structure
+        const sections = this.songStructure.getSections();
+        const sectionString = sections.join(',');
+        
+        // Check against known presets
+        for (const [presetName, presetSections] of Object.entries(this.songStructure.structures)) {
+            if (presetSections.join(',') === sectionString) {
+                return presetName;
+            }
+        }
+        
+        // Default fallback
+        return 'standard';
+    }
+
+    getAdjustedBars(section) {
+        const currentPreset = this.getCurrentPreset();
+        const songLengthMultiplier = parseFloat(document.getElementById('songLength').value);
+        
+        let baseBars;
+        if (currentPreset === 'tool') {
+            baseBars = this.songStructure.toolBarsPerSection[section] || this.songStructure.barsPerSection[section] || 8;
+        } else {
+            baseBars = this.songStructure.barsPerSection[section] || 8;
+        }
+        
+        return Math.round(baseBars * songLengthMultiplier * this.songLengthAdjustmentFactor);
     }
 
     showStatus(message) {
