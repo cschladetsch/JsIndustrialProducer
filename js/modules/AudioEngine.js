@@ -331,14 +331,16 @@ export class AudioEngine {
         
         // Vary oscillator types for different textures
         const waveforms = ['sawtooth', 'square', 'triangle'];
-        osc.type = distortion > 50 ? waveforms[Math.floor(Math.random() * waveforms.length)] : 'sine';
+        const waveRng = this.seededRandom(seed + sectionIndex + 1000);
+        osc.type = distortion > 50 ? waveforms[Math.floor(waveRng() * waveforms.length)] : 'sine';
         osc2.type = 'sine'; // Sub oscillator
         
         osc.frequency.setValueAtTime(frequency, time);
         osc2.frequency.setValueAtTime(frequency * 0.5, time); // Sub bass
         
         // Add slight detuning for thickness
-        const detune = (Math.random() - 0.5) * 10;
+        const detuneRng = this.seededRandom(seed + sectionIndex + 2000);
+        const detune = (detuneRng() - 0.5) * 10;
         osc.detune.setValueAtTime(detune, time);
         
         // Dynamic filter with envelope

@@ -325,8 +325,8 @@ export class IndustrialMusicApp {
             if (currentPreset === 'tool') {
                 // Use Tool-specific complex time signatures
                 timeSig = this.songStructure.getToolTimeSignature(section, index);
-            } else if ((section === 'verse' || section === 'bridge') && Math.random() > 0.5) {
-                timeSig = this.songStructure.getRandomTimeSignature();
+            } else if ((section === 'verse' || section === 'bridge') && this.seededRandom(this.currentSeed + index * 1000)() > 0.5) {
+                timeSig = this.songStructure.getRandomTimeSignature(this.currentSeed + index);
             }
             return timeSig;
         });
@@ -728,8 +728,8 @@ export class IndustrialMusicApp {
         try {
             console.log('Creating blob with MIDI data size:', this.midiData.length);
             
-            // Use correct MIDI MIME type
-            const blob = new Blob([this.midiData], { type: 'audio/midi' });
+            // Use application/octet-stream for maximum compatibility with DAWs
+            const blob = new Blob([this.midiData], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             
             console.log('Created blob URL:', url);
@@ -823,6 +823,13 @@ export class IndustrialMusicApp {
         }
         
         return Math.round(baseBars * songLengthMultiplier * this.songLengthAdjustmentFactor);
+    }
+
+    seededRandom(seed) {
+        return () => {
+            seed = (seed * 9301 + 49297) % 233280;
+            return seed / 233280;
+        };
     }
 
     showStatus(message) {

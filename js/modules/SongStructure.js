@@ -332,7 +332,7 @@ export class SongStructure {
         return this.sections;
     }
 
-    getRandomTimeSignature() {
+    getRandomTimeSignature(seed = Date.now()) {
         const signatures = [
             { numerator: 5, denominator: 4 },
             { numerator: 7, denominator: 8 },
@@ -344,7 +344,15 @@ export class SongStructure {
             { numerator: 13, denominator: 8 },
             { numerator: 15, denominator: 16 }
         ];
-        return signatures[Math.floor(Math.random() * signatures.length)];
+        const rng = this.seededRandom(seed);
+        return signatures[Math.floor(rng() * signatures.length)];
+    }
+
+    seededRandom(seed) {
+        return () => {
+            seed = (seed * 9301 + 49297) % 233280;
+            return seed / 233280;
+        };
     }
     
     getToolTimeSignature(section, sectionIndex) {

@@ -91,7 +91,8 @@ export class MidiGenerator {
                     const deltaTime = sigIndex === 0 ? barLength * 4 : barLength * timeSig.bars;
                     track.push(...this.encodeVariableLength(deltaTime));
                     track.push(0xFF, 0x58, 0x04);
-                    track.push(timeSig.numerator, timeSig.denominator, 0x18, 0x08);
+                    const denominatorPower = Math.log2(timeSig.denominator);
+                    track.push(timeSig.numerator, denominatorPower, 0x18, 0x08);
                     currentTick = 0;
                 }
             });
@@ -114,49 +115,49 @@ export class MidiGenerator {
         // Tool-inspired complex time signature progressions
         const patterns = {
             intro: [
-                { numerator: 4, denominator: 2, bars: 4 }, 
-                { numerator: 7, denominator: 2, bars: 2 },
-                { numerator: 4, denominator: 2, bars: 2 }
+                { numerator: 4, denominator: 4, bars: 4 }, 
+                { numerator: 7, denominator: 4, bars: 2 },
+                { numerator: 4, denominator: 4, bars: 2 }
             ],
             verse: [
-                { numerator: 7, denominator: 2, bars: 4 }, // Signature Tool 7/4
-                { numerator: 9, denominator: 2, bars: 2 }, // Complex 9/4 like "Schism"
-                { numerator: 7, denominator: 2, bars: 4 },
-                { numerator: 4, denominator: 2, bars: 4 }, // Resolution to 4/4
-                { numerator: 5, denominator: 2, bars: 2 }  // 5/4 transition
+                { numerator: 7, denominator: 4, bars: 4 }, // Signature Tool 7/4
+                { numerator: 9, denominator: 8, bars: 2 }, // Complex 9/8 like "Schism"
+                { numerator: 7, denominator: 4, bars: 4 },
+                { numerator: 4, denominator: 4, bars: 4 }, // Resolution to 4/4
+                { numerator: 5, denominator: 4, bars: 2 }  // 5/4 transition
             ],
             chorus: [
-                { numerator: 4, denominator: 2, bars: 8 }, // Stable chorus in 4/4
-                { numerator: 7, denominator: 2, bars: 4 }, // But with 7/4 variations
-                { numerator: 4, denominator: 2, bars: 4 }
+                { numerator: 4, denominator: 4, bars: 8 }, // Stable chorus in 4/4
+                { numerator: 7, denominator: 4, bars: 4 }, // But with 7/4 variations
+                { numerator: 4, denominator: 4, bars: 4 }
             ],
             bridge: [
-                { numerator: 9, denominator: 2, bars: 4 }, // Complex 9/4 like "Forty Six & 2"
-                { numerator: 7, denominator: 2, bars: 4 },
-                { numerator: 5, denominator: 2, bars: 2 },
-                { numerator: 4, denominator: 2, bars: 2 }
+                { numerator: 9, denominator: 8, bars: 4 }, // Complex 9/8 like "Forty Six & 2"
+                { numerator: 7, denominator: 4, bars: 4 },
+                { numerator: 5, denominator: 4, bars: 2 },
+                { numerator: 4, denominator: 4, bars: 2 }
             ],
             breakdown: [
-                { numerator: 11, denominator: 2, bars: 2 }, // Extremely complex like "Rosetta Stoned"
-                { numerator: 7, denominator: 2, bars: 3 },
-                { numerator: 9, denominator: 2, bars: 2 },
-                { numerator: 4, denominator: 2, bars: 1 }  // Brief resolution
+                { numerator: 11, denominator: 8, bars: 2 }, // Extremely complex like "Rosetta Stoned"
+                { numerator: 7, denominator: 4, bars: 3 },
+                { numerator: 9, denominator: 8, bars: 2 },
+                { numerator: 4, denominator: 4, bars: 1 }  // Brief resolution
             ],
             instrumental: [
-                { numerator: 5, denominator: 2, bars: 4 },
-                { numerator: 7, denominator: 2, bars: 4 },
-                { numerator: 9, denominator: 2, bars: 4 },
-                { numerator: 4, denominator: 2, bars: 4 }
+                { numerator: 5, denominator: 4, bars: 4 },
+                { numerator: 7, denominator: 4, bars: 4 },
+                { numerator: 9, denominator: 8, bars: 4 },
+                { numerator: 4, denominator: 4, bars: 4 }
             ],
             outro: [
-                { numerator: 7, denominator: 2, bars: 4 }, 
-                { numerator: 5, denominator: 2, bars: 2 },
-                { numerator: 4, denominator: 2, bars: 2 }
+                { numerator: 7, denominator: 4, bars: 4 }, 
+                { numerator: 5, denominator: 4, bars: 2 },
+                { numerator: 4, denominator: 4, bars: 2 }
             ]
         };
         
         // Add section-specific variations based on index for more complexity
-        const basePattern = patterns[section] || [{ numerator: 4, denominator: 2, bars: 4 }];
+        const basePattern = patterns[section] || [{ numerator: 4, denominator: 4, bars: 4 }];
         
         // Tool songs often have evolving complexity - later sections get more complex
         if (sectionIndex > 3) {
